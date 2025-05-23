@@ -7,13 +7,21 @@ import threading
 import os
 
 
-api_id = int(os.getenv("API_ID"))
-api_hash = os.getenv("API_HASH")
-phone_number = os.getenv("PHONE_NUMBER")
-IMGBB_API_KEY = os.getenv("IMGBB_API_KEY")
-BASE_URL = os.getenv("BASE_URL")
-SOURCE_CHANNEL_URL = os.getenv("SOURCE_CHANNEL_URL")
-TEST_CHANNEL = os.getenv("TEST_CHANNEL")
+# api_id = int(os.getenv("API_ID"))
+# api_hash = os.getenv("API_HASH")
+# phone_number = os.getenv("PHONE_NUMBER")
+# IMGBB_API_KEY = os.getenv("IMGBB_API_KEY")
+# BASE_URL = os.getenv("BASE_URL")
+# SOURCE_CHANNEL_URL = os.getenv("SOURCE_CHANNEL_URL")
+# TEST_CHANNEL = os.getenv("TEST_CHANNEL")
+
+api_id = 1373145  
+api_hash = '9d6bf47769223185e0c03026d8c5ad62'
+phone_number = '+919953442578'  
+IMGBB_API_KEY = "5b7204437000da1ddb348bd72844f8de"
+BASE_URL = "https://bunnyaffapi.onrender.com"
+SOURCE_CHANNEL_URL = "https://t.me/+Rg9_MaRYo_JhDlzp"
+TEST_CHANNEL = "@bunytest"
 
 def trigger_cron_v2():
     def run():
@@ -100,7 +108,7 @@ def save_to_db(modified_text, store, image_url=""):
         print("❌ Error saving to DB:", e)
 
 
-client = TelegramClient('forwarder_session', api_id, api_hash)
+client = TelegramClient('forwarder_session2', api_id, api_hash)
 
 async def main():
     await client.start(phone=phone_number)
