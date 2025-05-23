@@ -7,26 +7,19 @@ import threading
 import os
 
 
-# api_id = int(os.getenv("API_ID"))
-# api_hash = os.getenv("API_HASH")
-# phone_number = os.getenv("PHONE_NUMBER")
-# IMGBB_API_KEY = os.getenv("IMGBB_API_KEY")
-# BASE_URL = os.getenv("BASE_URL")
-# SOURCE_CHANNEL_URL = os.getenv("SOURCE_CHANNEL_URL")
-# TEST_CHANNEL = os.getenv("TEST_CHANNEL")
-
-api_id = 1373145  
-api_hash = '9d6bf47769223185e0c03026d8c5ad62'
-phone_number = '+919953442578'  
-IMGBB_API_KEY = "5b7204437000da1ddb348bd72844f8de"
-BASE_URL = "https://bunnyaffapi.onrender.com"
-SOURCE_CHANNEL_URL = "https://t.me/+Rg9_MaRYo_JhDlzp"
-TEST_CHANNEL = "@bunytest"
+api_id = int(os.getenv("API_ID"))
+api_hash = os.getenv("API_HASH")
+phone_number = os.getenv("PHONE_NUMBER")
+IMGBB_API_KEY = os.getenv("IMGBB_API_KEY")
+BASE_URL = os.getenv("BASE_URL")
+SOURCE_CHANNEL_URL = os.getenv("SOURCE_CHANNEL_URL")
+TEST_CHANNEL = os.getenv("TEST_CHANNEL")
+CRON_TIMEOUT = int(os.getenv("CRON_TIMEOUT"))
 
 def trigger_cron_v2():
     def run():
         try:
-            requests.get(BASE_URL + "/cron/v2", timeout=60)
+            requests.get(BASE_URL + "/cron/v2", timeout=CRON_TIMEOUT)
             print("🚀 Triggered cron/v2")
         except requests.exceptions.RequestException as e:
             print("⚠️ Error triggering cron/v2:", e)
