@@ -15,6 +15,10 @@ BASE_URL = os.getenv("BASE_URL")
 SOURCE_CHANNEL_URL = os.getenv("SOURCE_CHANNEL_URL")
 TEST_CHANNEL = os.getenv("TEST_CHANNEL")
 CRON_TIMEOUT = int(os.getenv("CRON_TIMEOUT"))
+ACCESS_TOKEN = os.getenv("TEST_CHANNEL")
+REMEMBER_TOKEN = os.getenv("TEST_CHANNEL")
+
+
 
 def trigger_cron_v2():
     def run():
@@ -49,8 +53,8 @@ def modify_message(text):
     url = BASE_URL + '/api/change-deal-aff'
     payload = {
         "message": text,
-        "accessToken": "eyJraWQiOiJlZTE2MTIwMC03ZjY2LTRmZDMtOTZjMS02NWJkNDM4NjU2OTMiLCJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJhdWQiOiI2MzJjNzFiZTdhNTcxYjYzOWQyMmZhM2QiLCJpc3MiOiJodHRwczovL3d3dy5leHRyYXBlLmNvbSIsIm5hbWUiOiJUdXNoYXIgQmFoZXRpIiwiZXhwIjoxNzQ5MTQyMzUzLCJ1c2VySWQiOiI2MzJjNzFiZTdhNTcxYjYzOWQyMmZhM2QiLCJpYXQiOjE3NDY1NTAzNTN9.H_OGobTjkAxLhptFPq9LVs3d7RHZyCxxMBCWaAjhRBKiVbBAG7cBqnmTNUU-Uaq3s1j7Bk0pEFgc7N5wiwVY8A",
-        "rememberMeToken": "1746550353405632c71be7a571b639d22fa3d6",
+        "accessToken": ACCESS_TOKEN,
+        "rememberMeToken": REMEMBER_TOKEN,
         "bitlyConvert": True,
         "imageUrl": ""
     }
@@ -126,7 +130,10 @@ async def main():
 
 
         modified_text = modify_message(text)
+        print("Modified message success✅✅")
+        print(modified_text)
         store = getStore(modified_text)
+        print("Store fetched success✅✅")
         save_to_db(modified_text, store, image_url)
         trigger_cron_v2()
         print("Everything done sucessfully✅✅")
