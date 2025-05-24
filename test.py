@@ -1,4 +1,6 @@
 from telethon import TelegramClient, events
+from telethon.tl.types import MessageMediaPhoto, MessageEntityTextUrl
+
 import requests
 import json
 from io import BytesIO
@@ -12,22 +14,28 @@ api_hash = os.getenv("API_HASH")
 phone_number = os.getenv("PHONE_NUMBER")
 IMGBB_API_KEY = os.getenv("IMGBB_API_KEY")
 BASE_URL = os.getenv("BASE_URL")
-SOURCE_CHANNEL_URL = os.getenv("SOURCE_CHANNEL_URL")
+BASE_URL_2 = os.getenv("BASE_URL_2")
 TEST_CHANNEL = os.getenv("TEST_CHANNEL")
 CRON_TIMEOUT = int(os.getenv("CRON_TIMEOUT"))
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 REMEMBER_TOKEN = os.getenv("REMEMBER_TOKEN")
+channel_urls = os.getenv("SOURCE_CHANNELS").split(",")
+USE_DEALAPI_V2 = int(os.getenv("USE_DEALAPI_V2"))
+UNWANTED_KEYWORD = os.getenv("UNWANTED_KEYWORD").split(",")
 
 
-
-def trigger_cron_v2():
+def trigger_cron_v2(deal_id=None):
     def run():
         try:
-            requests.get(BASE_URL + "/cron/v2", timeout=CRON_TIMEOUT)
-            print("🚀 Triggered cron/v2")
+            url = BASE_URL + "/cron/v2"
+            if deal_id:
+                url += f"?deal_id={deal_id}"
+            response = requests.get(url, timeout=CRON_TIMEOUT)  # Add timeout if CRON_TIMEOUT is undefined
+            print(f"🚀 Triggered cron/v2 for deal_id={deal_id}")
         except requests.exceptions.RequestException as e:
             print("⚠️ Error triggering cron/v2:", e)
     threading.Thread(target=run).start()
+
 
 
 def upload_image_to_imgbb(file_bytes):
@@ -49,26 +57,49 @@ def upload_image_to_imgbb(file_bytes):
 
 
 
-def modify_message(text):
-    url = BASE_URL + '/api/change-deal-aff'
-    payload = {
-        "message": text,
-        "accessToken": ACCESS_TOKEN,
-        "rememberMeToken": REMEMBER_TOKEN,
-        "bitlyConvert": True,
-        "imageUrl": ""
-    }
+def replace_text_links_with_urls(msg):
+    if not msg.entities:
+        return msg.message
 
-    headers = {'Content-Type': 'application/json'}
+    text = msg.message
+    offset_adjustment = 0
 
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
-        data = response.json()
-        return data.get("message")  # fallback to original if no 'message' in response
-    except requests.RequestException as e:
-        print("❌ Error from API:", e)
-        return text  # return original message in case of error
+    for entity in msg.entities:
+        if isinstance(entity, MessageEntityTextUrl):
+            start = entity.offset + offset_adjustment
+            end = start + entity.length
+            # Replace the anchor text with the raw URL
+            text = text[:start] + entity.url + text[end:]
+            # Adjust future offsets because replacement string length may differ
+            offset_adjustment += len(entity.url) - entity.length
+
+    return text
+
+
+
+def modify_message(text, is_deal_over = False):
+    if text is not None and len(text) > 0 and not is_deal_over:
+        url = BASE_URL + '/api/change-deal-aff'
+        payload = {
+            "message": text,
+            "accessToken": ACCESS_TOKEN,
+            "rememberMeToken": REMEMBER_TOKEN,
+            "bitlyConvert": True,
+            "imageUrl": ""
+        }
+
+        headers = {'Content-Type': 'application/json'}
+
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("message")  # fallback to original if no 'message' in response
+        except requests.RequestException as e:
+            print("❌ Error from change-deal-aff API:", e)
+            return text  # return original message in case of error
+    else:
+        return text
 
 def getStore(text):
     text = text.lower()
@@ -85,14 +116,16 @@ def getStore(text):
         return "Amazon"  # Default
 
 
-def save_to_db(modified_text, store, image_url=""):
-    url = BASE_URL + "/dealapi"
+def save_to_db(modified_text, store, image_url="", tg_msg_id = ""):
+    url = BASE_URL + ("/dealapi/v2" if USE_DEALAPI_V2 == 1 else "/dealapi")
+
     payload = {
         "deal": modified_text,
         "imgurl": image_url,
         "delay": "",
         "realmrp": "",
-        "store": store
+        "store": store,
+        "tg_msg_id": tg_msg_id
     }
 
     headers = {'Content-Type': 'application/json'}
@@ -100,43 +133,235 @@ def save_to_db(modified_text, store, image_url=""):
     try:
         response = requests.post(url, json=payload, headers=headers)
         response.raise_for_status()
-        print("✅ Message saved to DB")
+
+        response_data = response.json()
+        deal_id = response_data.get("data", {}).get("_id", None)
+
+        print("✅ Message saved to DB with _id:", deal_id)
+        return deal_id
     except requests.RequestException as e:
         print("❌ Error saving to DB:", e)
+        return None
+
+
+def checkIfUnwantedText(text):
+    unwanted_keywords = UNWANTED_KEYWORD
+    text_lower = text.lower()
+    for keyword in unwanted_keywords:
+        if keyword in text_lower:
+            return False  # Unwanted, so drop
+    return True  # Clean, allow processing
+
+def checkIfDealIsOver(text):
+    text_lower = text.lower()
+    if "over" in text_lower:
+        print("🗑️ Deal over revoke MSG")
+        return True  
+    return False  
+
+
+async def upload_photo_get_url(msg):
+    photo_media = None
+    image_url = ""
+    
+    try:
+        # Case 1: Photo in the main message
+        if isinstance(msg.media, MessageMediaPhoto):
+            photo_media = msg.media
+        # Case 2: Photo in the replied-to message
+        elif msg.reply_to_msg_id:
+            try:
+                replied_msg = await msg.get_reply_message()
+                if isinstance(replied_msg.media, MessageMediaPhoto):
+                    photo_media = replied_msg.media
+            except Exception as e:
+                print(f"⚠️ Could not fetch reply message media: {e}")
+
+        # Step 2: Download photo if available
+        if photo_media:
+            print("✅ Photo found, downloading...")
+            file_bytes = BytesIO()
+            await client.download_media(photo_media, file=file_bytes)
+            file_bytes.seek(0)
+            image_url = upload_image_to_imgbb(file_bytes)
+        else:
+            image_url = ""
+    except Exception as e:
+        print("❌ Error Uploading Image to imgbb:", e)
+    
+    return image_url
+
+
+def get_chat_and_msg_ids_from_db(msg_id):
+    url = BASE_URL_2 + f"/alldeals/get-chatids/{msg_id}"  # <-- make sure the URL matches your Express route
+
+    try:
+        response = requests.get(url)
+        response.raise_for_status() 
+        data = response.json()
+
+        if data.get("success"):
+            print("✅ Chat and Msg IDs:", data.get("chatandmsgids"))
+            return data
+        else:
+            return None
+            print("⚠️ Failed to fetch chat and msg ids:", data.get("message"))
+
+        return None
+    except requests.exceptions.RequestException as e:
+        print("❌ Error fetching chatandmsgids:", e)
+        return None
+    except ValueError:
+        print("❌ Response is not valid JSON.")
+        return None
+
+
+
+def update_forwarded_messages_sync(chat_and_msg_ids, modified_text):
+
+    print("modified_text sent for updating: ", modified_text)
+    api_url = BASE_URL + "/cron/update-messages"  # Your API endpoint
+
+    payload = {
+        "chatandmsgids": chat_and_msg_ids,
+        "text": modified_text
+    }
+
+    try:
+        response = requests.post(api_url, json=payload, timeout=CRON_TIMEOUT)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("success"):
+                print(f"✅ Successfully updated all messages: {data.get('message')}")
+            else:
+                print(f"⚠️ Partial failure: {data.get('message')}")
+        else:
+            print(f"❌ Failed to update messages, HTTP status: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Exception during update request: {e}")
+
+
+
+
+def update_message_in_db(deal_id, modified_text):
+    url = f"{BASE_URL_2}/alldeals/updatedealtext/{deal_id}"
+    payload = {
+        "text": modified_text
+    }
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    try:
+        response = requests.put(url, json=payload, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        if data.get("success"):
+            print(f"✅ Deal {deal_id} updated successfully in DB.")
+        else:
+            print(f"⚠️ Failed to update deal {deal_id}: {data.get('message')}")
+    except requests.RequestException as e:
+        print(f"❌ Error while updating deal {deal_id}: {e}")
+
+
+
+def checkServerHealth():
+    url = BASE_URL_2 + "/healthcheck"
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            print("✅ Btdai is healthy:", response.text)
+            return True
+        else:
+            print(f"⚠️ Server responded with status code {response.status_code}")
+            return False
+    except requests.RequestException as e:
+        print("❌ Server health check failed:", e)
+        return False
+
 
 
 client = TelegramClient('forwarder_session2', api_id, api_hash)
 
+
 async def main():
     await client.start(phone=phone_number)
-
     await client.send_message(TEST_CHANNEL, "Hey, I have started ✅")
 
-    # 👇 Resolve the source channel properly here
-    source = await client.get_entity(SOURCE_CHANNEL_URL)  # or invite link / username
+    sources = []
+    for url in channel_urls:
+        try:
+            entity = await client.get_entity(url.strip())
+            sources.append(entity)
+        except Exception as e:
+            print(f"⚠️ Failed to fetch entity for {url.strip()}: {e}")
 
-    @client.on(events.NewMessage(chats=source))
+    @client.on(events.NewMessage(chats=sources))
     async def handler(event):
-        msg = event.message
-        text = msg.message or ""
+        try:
+            msg = event.message
+            text = replace_text_links_with_urls(msg)
+            tg_msg_id = msg.id
 
-         # Handle media (images)
-        image_url = ""
-        if msg.media and not msg.photo:
-            file_bytes = BytesIO()
-            await client.download_media(msg.media, file=file_bytes)
-            file_bytes.seek(0)
-            image_url = upload_image_to_imgbb(file_bytes)
+            checkServerHealth()
+
+            if not checkIfUnwantedText(text):
+                print("❌ Msg contain unwanted things so dropping: " + text)
+                return
+
+            image_url = await upload_photo_get_url(msg)
+
+            modified_text = modify_message(text, False)
+            print("Modified message success✅✅")
+            print(modified_text)
+
+            store = getStore(modified_text)
+            print("Store fetched success✅✅")
+
+            deal_id = save_to_db(modified_text, store, image_url, tg_msg_id)
+            if deal_id is not None:
+                trigger_cron_v2(deal_id)
+
+            print("Everything done successfully ✅✅")
+
+        except Exception as e:
+            print("❌ Error in message handler:", e)
 
 
-        modified_text = modify_message(text)
-        print("Modified message success✅✅")
-        print(modified_text)
-        store = getStore(modified_text)
-        print("Store fetched success✅✅")
-        save_to_db(modified_text, store, image_url)
-        trigger_cron_v2()
-        print("Everything done sucessfully✅✅")
+    @client.on(events.MessageEdited(chats=sources))
+    async def edited_handler(event):
+        try:
+            edited_msg = event.message
+            print("✏️ Message was edited!")
+
+            checkServerHealth()
+
+            text = replace_text_links_with_urls(edited_msg)
+            is_deal_over = checkIfDealIsOver(text)
+
+            BTDAILY_DEAL_ID = None
+            image_url = ""
+            modified_text = modify_message(text, is_deal_over)
+            store = getStore(modified_text)
+
+            alldeals_data = get_chat_and_msg_ids_from_db(edited_msg.id)
+
+            if alldeals_data is not None:
+                chat_and_msg_ids = alldeals_data.get("chatandmsgids")
+                if not chat_and_msg_ids:
+                    print("⚠️ No forwarded message mapping found, skipping...")
+                    return
+                BTDAILY_DEAL_ID = alldeals_data.get("id")
+            else:
+                return
+
+
+            update_forwarded_messages_sync(chat_and_msg_ids, modified_text)
+            update_message_in_db(BTDAILY_DEAL_ID, modified_text)
+
+        except Exception as e:
+            print("❌ Error in edited_handler:", e)
+
 
     print("Listening for messages...")
     await client.run_until_disconnected()
