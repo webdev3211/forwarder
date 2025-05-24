@@ -1,5 +1,6 @@
 from telethon import TelegramClient, events
 from telethon.tl.types import MessageMediaPhoto, MessageEntityTextUrl
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 import json
@@ -24,18 +25,20 @@ USE_DEALAPI_V2 = int(os.getenv("USE_DEALAPI_V2"))
 UNWANTED_KEYWORD = os.getenv("UNWANTED_KEYWORD").split(",")
 
 
+executor = ThreadPoolExecutor(max_workers=5)  # Adjust based on expected parallel jobs
+
 def trigger_cron_v2(deal_id=None):
     def run():
         try:
             url = BASE_URL + "/cron/v2"
             if deal_id:
                 url += f"?deal_id={deal_id}"
-            response = requests.get(url, timeout=CRON_TIMEOUT)  # Add timeout if CRON_TIMEOUT is undefined
+            response = requests.get(url, timeout=CRON_TIMEOUT)  # timeout should be >60s here
             print(f"🚀 Triggered cron/v2 for deal_id={deal_id}")
-        except requests.exceptions.RequestException as e:
+        except requests.RequestException as e:
             print("⚠️ Error triggering cron/v2:", e)
-    threading.Thread(target=run).start()
 
+    executor.submit(run)
 
 
 def upload_image_to_imgbb(file_bytes):
