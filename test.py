@@ -219,31 +219,28 @@ def get_chat_and_msg_ids_from_db(msg_id):
         return None
 
 
-
 def update_forwarded_messages_sync(chat_and_msg_ids, modified_text):
+    def run():
+        api_url = BASE_URL + "/cron/update-messages"
+        payload = {
+            "chatandmsgids": chat_and_msg_ids,
+            "text": modified_text
+        }
 
-    print("modified_text sent for updating: ", modified_text)
-    api_url = BASE_URL + "/cron/update-messages"  # Your API endpoint
-
-    payload = {
-        "chatandmsgids": chat_and_msg_ids,
-        "text": modified_text
-    }
-
-    try:
-        response = requests.post(api_url, json=payload, timeout=CRON_TIMEOUT)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("success"):
-                print(f"✅ Successfully updated all messages: {data.get('message')}")
+        try:
+            response = requests.post(api_url, json=payload, timeout=CRON_TIMEOUT)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    print(f"✅ Successfully updated all messages: {data.get('message')}")
+                else:
+                    print(f"⚠️ Partial failure: {data.get('message')}")
             else:
-                print(f"⚠️ Partial failure: {data.get('message')}")
-        else:
-            print(f"❌ Failed to update messages, HTTP status: {response.status_code}")
-    except Exception as e:
-        print(f"❌ Exception during update request: {e}")
+                print(f"❌ Failed to update messages, HTTP status: {response.status_code}")
+        except Exception as e:
+            print(f"❌ Exception during update request: {e}")
 
-
+    executor.submit(run)
 
 
 def update_message_in_db(deal_id, modified_text):
