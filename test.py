@@ -8,6 +8,7 @@ from io import BytesIO
 import re
 import threading
 import os
+from datetime import datetime
 
 
 api_id = int(os.getenv("API_ID"))
@@ -27,14 +28,24 @@ UNWANTED_KEYWORD = os.getenv("UNWANTED_KEYWORD").split(",")
 
 executor = ThreadPoolExecutor(max_workers=5)  # Adjust based on expected parallel jobs
 
+
 def trigger_cron_v2(deal_id=None):
     def run():
         try:
             url = BASE_URL + "/cron/v2"
+            start = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
+            print(f"🚀 Started cron/v2 for deal_id={deal_id} at {start}")
+
+            payload = {
+                "triggerTime": start
+            }
+
             if deal_id:
-                url += f"?deal_id={deal_id}"
-            response = requests.get(url, timeout=CRON_TIMEOUT)  # timeout should be >60s here
-            print(f"🚀 Triggered cron/v2 for deal_id={deal_id}")
+                payload["deal_id"] = deal_id
+
+            response = requests.post(url, json=payload, timeout=CRON_TIMEOUT)
+            end = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
+            print(f"🚀 Finished cron/v2 for deal_id={deal_id} at {end}")
         except requests.RequestException as e:
             print("⚠️ Error triggering cron/v2:", e)
 
