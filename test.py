@@ -24,6 +24,7 @@ REMEMBER_TOKEN = os.getenv("REMEMBER_TOKEN")
 channel_urls = os.getenv("SOURCE_CHANNELS").split(",")
 USE_DEALAPI_V2 = int(os.getenv("USE_DEALAPI_V2"))
 UNWANTED_KEYWORD = os.getenv("UNWANTED_KEYWORD").split(",")
+private_channels = os.getenv("PRIVATE_CHANNELS").split(",")
 
 
 executor = ThreadPoolExecutor(max_workers=5)  # Adjust based on expected parallel jobs
@@ -131,7 +132,14 @@ def getStore(text):
 
 
 def save_to_db(modified_text, store, image_url="", tg_msg_id = ""):
-    url = BASE_URL + ("/dealapi/v2" if USE_DEALAPI_V2 == 1 else "/dealapi")
+    url = ""
+
+    word_count = len(modified_text.strip().split())
+    
+    if USE_DEALAPI_V2 == 1 and word_count >= 4:
+        url = BASE_URL + "/dealapi/v2"
+    else:
+        url = BASE_URL + "/dealapi"
 
     payload = {
         "deal": modified_text,
@@ -306,6 +314,17 @@ async def main():
             sources.append(entity)
         except Exception as e:
             print(f"⚠️ Failed to fetch entity for {url.strip()}: {e}")
+
+
+    for channel_id in private_channels:
+        try:
+            entity = await client.get_entity(PeerChannel(int(channel_id)))
+            sources.append(entity)
+        except Exception as e:
+            print(f"⚠️ Failed to fetch private entity for ID {channel_id}: {e}")
+
+    print("No of sources: ", len(sources))
+
 
     @client.on(events.NewMessage(chats=sources))
     async def handler(event):
