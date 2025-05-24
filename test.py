@@ -1,5 +1,5 @@
 from telethon import TelegramClient, events
-from telethon.tl.types import MessageMediaPhoto, MessageEntityTextUrl
+from telethon.tl.types import MessageMediaPhoto, MessageEntityTextUrl, PeerChannel
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
@@ -9,7 +9,7 @@ import re
 import threading
 import os
 from datetime import datetime
-
+import time
 
 api_id = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
@@ -25,9 +25,15 @@ channel_urls = os.getenv("SOURCE_CHANNELS").split(",")
 USE_DEALAPI_V2 = int(os.getenv("USE_DEALAPI_V2"))
 UNWANTED_KEYWORD = os.getenv("UNWANTED_KEYWORD").split(",")
 private_channels = os.getenv("PRIVATE_CHANNELS").split(",")
+TTL_SECONDS = int(os.getenv("TTL_SECONDS")) 
 
 
+
+LOCAL_TEST_BYPASS = False
 executor = ThreadPoolExecutor(max_workers=5)  # Adjust based on expected parallel jobs
+processed_links = {}
+url_regex = r'(https?://[^\s]+)'
+
 
 
 def trigger_cron_v2(deal_id=None):
@@ -300,6 +306,32 @@ def checkServerHealth():
 
 
 
+
+def extract_first_url(text):
+    match = re.search(url_regex, text)
+    return match.group(1) if match else None
+
+def is_already_processed_by_url(text):
+    url = extract_first_url(text)
+    now = time.time()
+
+    # Cleanup expired entries
+    expired_keys = [k for k, v in processed_links.items() if now - v > TTL_SECONDS]
+    for k in expired_keys:
+        del processed_links[k]
+
+    if url and url in processed_links:
+        return True
+
+    if url:
+        processed_links[url] = now
+    
+    print(processed_links)
+
+    return False
+
+
+
 client = TelegramClient('forwarder_session2', api_id, api_hash)
 
 
@@ -338,6 +370,11 @@ async def main():
             if not checkIfUnwantedText(text):
                 print("❌ Msg contain unwanted things so dropping: " + text)
                 return
+
+            if not LOCAL_TEST_BYPASS:
+                if is_already_processed_by_url(text):
+                    print("⚠️ Duplicate message based on URL, skipping...")
+                    return
 
             image_url = await upload_photo_get_url(msg)
 
