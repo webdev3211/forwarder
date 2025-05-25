@@ -1,14 +1,15 @@
 from telethon import TelegramClient, events
 from telethon.tl.types import MessageMediaPhoto, MessageEntityTextUrl, PeerChannel
 from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
+from datetime import datetime
+
 
 import requests
 import json
-from io import BytesIO
 import re
 import threading
 import os
-from datetime import datetime
 import time
 
 api_id = int(os.getenv("API_ID"))
@@ -142,7 +143,7 @@ def save_to_db(modified_text, store, image_url="", tg_msg_id = ""):
 
     word_count = len(modified_text.strip().split())
     
-    if USE_DEALAPI_V2 == 1 and word_count >= 4:
+    if USE_DEALAPI_V2 == 1 and word_count >= 5:
         url = BASE_URL + "/dealapi/v2"
     else:
         url = BASE_URL + "/dealapi"
@@ -185,7 +186,11 @@ def checkIfDealIsOver(text):
     if "over" in text_lower:
         print("🗑️ Deal over revoke MSG")
         return True  
-    return False  
+    unwanted_keywords_added_during_update =  checkIfUnwantedText(text)
+    if unwanted_keywords_added_during_update:
+        print("🗑️ Unwanted keyword added during update revoke MSG")
+        return True
+    return False
 
 
 async def upload_photo_get_url(msg):
