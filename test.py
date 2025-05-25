@@ -28,6 +28,7 @@ UNWANTED_KEYWORD = os.getenv("UNWANTED_KEYWORD").split(",")
 private_channels = os.getenv("PRIVATE_CHANNELS").split(",")
 TTL_SECONDS = int(os.getenv("TTL_SECONDS")) 
 EXCLUDED_KEYWORDS = os.getenv("EXCLUDED_KEYWORDS").split(",")
+DELETE_SLEEP_WAIT = int(os.getenv("DELETE_SLEEP_WAIT"))
 
 
 LOCAL_TEST_BYPASS = False
@@ -252,7 +253,6 @@ def get_chat_and_msg_ids_from_db(msg_id):
         data = response.json()
 
         if data.get("success"):
-            print("✅ Chat and Msg IDs:", data.get("chatandmsgids"))
             return data
         else:
             return None
@@ -349,9 +349,28 @@ def is_already_processed_by_url(text):
     if url:
         processed_links[url] = now
     
-    print(processed_links)
-
     return False
+
+
+def handle_deletes_after_delay(deleted_ids):
+    print("🚀 Msg ID submitted for deletion: ", deleted_ids)
+    time.sleep(DELETE_SLEEP_WAIT)  # Wait 2 minutes
+
+    for msg_id in deleted_ids:
+        alldeals_data = get_chat_and_msg_ids_from_db(msg_id)
+
+        if alldeals_data is not None:
+            chat_and_msg_ids = alldeals_data.get("chatandmsgids")
+            if not chat_and_msg_ids:
+                print("⚠️ No forwarded message mapping found, skipping...")
+                continue
+            BTDAILY_DEAL_ID = alldeals_data.get("id")
+            text = alldeals_data.get("deal") + " OVER "
+
+            update_forwarded_messages_sync(chat_and_msg_ids, text)
+            print("DELETED MSG_ID: ", msg_id)
+        else:
+            print(f"❗No DB mapping for msg_id {msg_id} even after delay.")
 
 
 
@@ -451,6 +470,21 @@ async def main():
 
         except Exception as e:
             print("❌ Error in edited_handler:", e)
+
+
+    @client.on(events.MessageDeleted(chats=sources))
+    async def delete_handler(event):
+        try:
+            deleted_ids = event.deleted_ids
+            print(f"🗑️ Message(s) deleted: {deleted_ids}")
+
+            checkServerHealth()
+
+            # Submit the delayed task to a thread
+            executor.submit(handle_deletes_after_delay, deleted_ids)
+
+        except Exception as e:
+            print("❌ Error in delete_handler:", e)
 
 
     print("Listening for messages...")
