@@ -27,7 +27,7 @@ USE_DEALAPI_V2 = int(os.getenv("USE_DEALAPI_V2"))
 UNWANTED_KEYWORD = os.getenv("UNWANTED_KEYWORD").split(",")
 private_channels = os.getenv("PRIVATE_CHANNELS").split(",")
 TTL_SECONDS = int(os.getenv("TTL_SECONDS")) 
-
+EXCLUDED_KEYWORDS = os.getenv("EXCLUDED_KEYWORDS").split(",")
 
 
 LOCAL_TEST_BYPASS = False
@@ -138,12 +138,30 @@ def getStore(text):
         return "Amazon"  # Default
 
 
+
+def checkIfCanUseDealApiV2(modified_text):
+    try:
+        word_count = len(modified_text.strip().split())
+
+        excluded_keywords = EXCLUDED_KEYWORDS
+        lower_text = modified_text.lower()
+
+        # Block v2 if any excluded keyword is present
+        if any(keyword in lower_text for keyword in excluded_keywords):
+            return False
+
+        # Allow v2 only if word count is >= 5
+        return word_count >= 5
+
+    except Exception as e:
+        print("Some error in checkIfCanUseDealApiV2: ", e)
+
+    return True
+
 def save_to_db(modified_text, store, image_url="", tg_msg_id = ""):
     url = ""
-
-    word_count = len(modified_text.strip().split())
     
-    if USE_DEALAPI_V2 == 1 and word_count >= 5:
+    if USE_DEALAPI_V2 == 1 and checkIfCanUseDealApiV2(modified_text):
         url = BASE_URL + "/dealapi/v2"
     else:
         url = BASE_URL + "/dealapi"
