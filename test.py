@@ -29,13 +29,15 @@ private_channels = os.getenv("PRIVATE_CHANNELS").split(",")
 TTL_SECONDS = int(os.getenv("TTL_SECONDS")) 
 EXCLUDED_KEYWORDS = os.getenv("EXCLUDED_KEYWORDS").split(",")
 DELETE_SLEEP_WAIT = int(os.getenv("DELETE_SLEEP_WAIT"))
+WORKERS = int(os.getenv("WORKERS"))
+DELETED_ID_TTL_SECONDS = int(os.getenv("DELETED_ID_TTL_SECONDS"))
 
 
 LOCAL_TEST_BYPASS = False
-executor = ThreadPoolExecutor(max_workers=5)  # Adjust based on expected parallel jobs
+executor = ThreadPoolExecutor(max_workers=WORKERS)  # Adjust based on expected parallel jobs
 processed_links = {}
 url_regex = r'(https?://[^\s]+)'
-
+deleted_ids_memory = {}
 
 
 def trigger_cron_v2(deal_id=None):
@@ -366,7 +368,37 @@ def is_already_processed_by_url(text):
     return False
 
 
+def get_unique_actual_deleted_ids(deleted_ids):
+    try:
+        now = time.time()
+
+        # Cleanup old deleted IDs
+        expired_ids = [msg_id for msg_id, ts in deleted_ids_memory.items() if now - ts > DELETED_ID_TTL_SECONDS]
+        for msg_id in expired_ids:
+            del deleted_ids_memory[msg_id]
+
+        new_ids = []
+        for msg_id in deleted_ids:
+            if msg_id not in deleted_ids_memory:
+                deleted_ids_memory[msg_id] = now
+                new_ids.append(msg_id)
+            else:
+                print(f"🛑 Skipping duplicate deletion for msg_id: {msg_id}")
+
+        if not new_ids:
+            print("🚫 No new IDs to delete, skipping task.")
+            return []
+            
+        return new_ids
+    except Exception as e:
+        print("Some error while deleting from memory: ", e)
+        return deleted_ids
+
+
+
 def handle_deletes_after_delay(deleted_ids):
+
+    deleted_ids = get_unique_actual_deleted_ids(deleted_ids)
     print("🚀 Msg ID submitted for deletion: ", deleted_ids)
     time.sleep(DELETE_SLEEP_WAIT)  # Wait 2 minutes
 
@@ -375,11 +407,12 @@ def handle_deletes_after_delay(deleted_ids):
 
         if alldeals_data is not None:
             chat_and_msg_ids = alldeals_data.get("chatandmsgids")
+            deal_msg = alldeals_data.get("deal")
             if not chat_and_msg_ids:
-                print("⚠️ No forwarded message mapping found, skipping...")
+                print("⚠️ No forwarded message mapping found, skipping... for text: ", deal_msg)
                 continue
             BTDAILY_DEAL_ID = alldeals_data.get("id")
-            text = alldeals_data.get("deal") + " OVER "
+            text = deal_msg + " OVER "
 
             update_forwarded_messages_sync(chat_and_msg_ids, text)
             print("DELETED MSG_ID: ", msg_id)
