@@ -192,21 +192,25 @@ def save_to_db(modified_text, store, image_url="", tg_msg_id = ""):
         return None
 
 
+
 def checkIfUnwantedText(text):
     try:
         text_lower = text.lower()
+
+        # Check for unwanted keywords
         for keyword in UNWANTED_KEYWORD:
             if keyword.lower() in text_lower:
                 print(f"🛑 Blocked message due to unwanted keyword: {keyword}")
-                return True  # Unwanted, so drop
+                return True  # Early return if unwanted keyword found
 
-        if "https://t.me" in text or "t.me/" in text:
+        # Check for Telegram links
+        if "https://t.me" in text_lower or "t.me/" in text_lower:
             print("❌ Telegram link found, skipping message:", text)
             return True
 
-        return False  # Clean, allow processing
+        return False  # Clean message
     except Exception as e:
-        print("Error occured at checkIfUnwantedText: ", e)
+        print("Error occurred in checkIfUnwantedText:", e)
         return False
 
 
@@ -433,6 +437,10 @@ async def main():
             modified_text = modify_message(text, False)
             print("Modified message success✅✅")
             print(modified_text)
+
+            if checkIfUnwantedText(text):
+                print("❌ Modified Msg contain unwanted things so dropping: " + text)
+                return
 
             store = getStore(modified_text)
             print("Store fetched success✅✅")
