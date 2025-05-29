@@ -31,6 +31,8 @@ EXCLUDED_KEYWORDS = os.getenv("EXCLUDED_KEYWORDS").split(",")
 DELETE_SLEEP_WAIT = int(os.getenv("DELETE_SLEEP_WAIT"))
 WORKERS = int(os.getenv("WORKERS"))
 DELETED_ID_TTL_SECONDS = int(os.getenv("DELETED_ID_TTL_SECONDS"))
+HANDLE_DUPLICATES = os.getenv("HANDLE_DUPLICATES")
+LINK_STORAGE_CACHE_DURATION = int(os.getenv("LINK_STORAGE_CACHE_DURATION"))
 
 
 LOCAL_TEST_BYPASS = False
@@ -271,8 +273,8 @@ def get_chat_and_msg_ids_from_db(msg_id):
         if data.get("success"):
             return data
         else:
-            return None
             print("⚠️ Failed to fetch chat and msg ids:", data.get("message"))
+            return None
 
         return None
     except requests.exceptions.RequestException as e:
@@ -395,7 +397,6 @@ def get_unique_actual_deleted_ids(deleted_ids):
         return deleted_ids
 
 
-
 def handle_deletes_after_delay(deleted_ids):
 
     deleted_ids = get_unique_actual_deleted_ids(deleted_ids)
@@ -418,6 +419,112 @@ def handle_deletes_after_delay(deleted_ids):
             print("DELETED MSG_ID: ", msg_id)
         else:
             print(f"❗No DB mapping for msg_id {msg_id} even after delay.")
+
+
+
+def clean_old_links_cache():
+    now = time.time()
+    keys_to_remove = [k for k, v in unshortened_link_cache.items() if now - v[0] > LINK_STORAGE_CACHE_DURATION]
+    for k in keys_to_remove:
+        del unshortened_link_cache[k]
+
+
+def unshorten_url(extracted_url):
+    url = f"{BASE_URL}/api/unshortenafflink"
+    payload = {
+        "link": extracted_url
+    }
+    headers = {
+        'Content-Type': 'application/json'
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout = 10)
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("success"):
+            return data.get("url")
+        else:
+            print("Failed unshortening url: ", extracted_url)
+            return None
+    except Exception as e:
+        print("Some error while unshortening url: ", e)
+        return None
+
+
+
+def extract_first_url(text):
+    match = re.search(r'(https?://[^\s]+)', text)
+    return match.group(1) if match else None
+
+
+
+def extract_real_url_if_wrapped(url):
+    if "linksredirect" in url or "tracking.ajio.business" in url or "myntra.onelink.me" in url:
+        print("it is either linkredirect or ajio or myntra link")
+        parsed = urlparse(url)
+        query_params = parse_qs(parsed.query)
+
+        # Check for known redirect parameters
+        for param in ["dl", "redirect", "u", "url", "target", "af_ios_url"]:
+            if param in query_params:
+                # Return the first occurrence, decoded
+                return unquote(query_params[param][0])
+
+        return url
+    else:
+        return url
+
+
+def storeFirstLinkAndCheckIfDuplicate(text):
+    try:
+        clean_old_links_cache()
+
+        url_extracted = extract_first_url(text)
+        if not url_extracted:
+            return
+
+        long_url = unshorten_url(url_extracted)
+        long_url = extract_real_url_if_wrapped(long_url)
+
+        if long_url is None:
+            return False
+
+        key = None
+
+        if "amazon" in long_url:
+            match = re.search(r"(https?://[^ ]+/(?:dp|d)/[^/?]+)", long_url)
+            if match:
+                key = match.group(1)[:35]
+            else:
+                key = long_url[0:30]
+        elif "flipkart" in long_url and "pid=" in long_url:
+            match = re.search(r"pid=([A-Z0-9]{16})", long_url)
+            if match:
+                key = match.group(1)  # just the 16-char product ID
+            else:
+                key = long_url[0:30]
+        elif "myntra" in long_url:
+            key = long_url[0:40]
+        elif "ajio" in long_url:
+            key = long_url[0:40]
+
+        if key is None:
+            return False
+
+        # Best-effort sync check using stored keys
+        for existing_key in unshortened_link_cache:
+            if key in existing_key or existing_key in key:
+                return True
+
+
+        unshortened_link_cache[key] = (time.time(), long_url)
+
+        return False
+    except Exception as e:
+        print("Some error at storeFirstLinkAndCheckIfDuplicate: ", e)
+        return False
 
 
 
@@ -463,6 +570,12 @@ async def main():
             if not LOCAL_TEST_BYPASS:
                 if is_already_processed_by_url(text):
                     print("⚠️ Duplicate message based on URL, skipping...")
+                    return
+
+            if HANDLE_DUPLICATES is True or HANDLE_DUPLICATES == "True":
+                has_duplicate = storeFirstLinkAndCheckIfDuplicate(text)
+                if has_duplicate:
+                    print("⚠️ Duplicate message sent by diff sources, skipping..." + text)
                     return
 
             image_url = await upload_photo_get_url(msg)
