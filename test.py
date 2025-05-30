@@ -12,6 +12,9 @@ import threading
 import os
 import time
 
+from urllib.parse import urlparse, parse_qs, unquote
+from collections import deque
+
 api_id = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
 phone_number = os.getenv("PHONE_NUMBER")
@@ -33,6 +36,7 @@ WORKERS = int(os.getenv("WORKERS"))
 DELETED_ID_TTL_SECONDS = int(os.getenv("DELETED_ID_TTL_SECONDS"))
 HANDLE_DUPLICATES = os.getenv("HANDLE_DUPLICATES")
 LINK_STORAGE_CACHE_DURATION = int(os.getenv("LINK_STORAGE_CACHE_DURATION"))
+LINK_KEY_LENGTHS = json.loads(os.getenv("LINK_KEY_LENGTHS", "{}"))
 
 
 LOCAL_TEST_BYPASS = False
@@ -484,7 +488,7 @@ def storeFirstLinkAndCheckIfDuplicate(text):
 
         url_extracted = extract_first_url(text)
         if not url_extracted:
-            return
+            return False
 
         long_url = unshorten_url(url_extracted)
         long_url = extract_real_url_if_wrapped(long_url)
@@ -494,29 +498,36 @@ def storeFirstLinkAndCheckIfDuplicate(text):
 
         key = None
 
+        AMAZON_LENGTH = LINK_KEY_LENGTHS.get("amazon", 30)
+        FLIPKART_LENGTH = LINK_KEY_LENGTHS.get("flipkart", 30)
+        MYNTRA_LENGTH = LINK_KEY_LENGTHS.get("myntra", 40)
+        AJIO_LENGTH = LINK_KEY_LENGTHS.get("ajio", 40)
+
         if "amazon" in long_url:
             match = re.search(r"(https?://[^ ]+/(?:dp|d)/[^/?]+)", long_url)
             if match:
                 key = match.group(1)[:35]
             else:
-                key = long_url[0:30]
+                key = long_url[0:AMAZON_LENGTH]
         elif "flipkart" in long_url and "pid=" in long_url:
             match = re.search(r"pid=([A-Z0-9]{16})", long_url)
             if match:
                 key = match.group(1)  # just the 16-char product ID
             else:
-                key = long_url[0:30]
+                key = long_url[0:FLIPKART_LENGTH]
         elif "myntra" in long_url:
-            key = long_url[0:40]
+            key = long_url[0:MYNTRA_LENGTH]
         elif "ajio" in long_url:
-            key = long_url[0:40]
+            key = long_url[0:AJIO_LENGTH]
 
         if key is None:
             return False
 
+    
         # Best-effort sync check using stored keys
         for existing_key in unshortened_link_cache:
             if key in existing_key or existing_key in key:
+                print("Duplicate text: " + text + " BECAUSE OF KEY = " + key)
                 return True
 
 
@@ -526,6 +537,7 @@ def storeFirstLinkAndCheckIfDuplicate(text):
     except Exception as e:
         print("Some error at storeFirstLinkAndCheckIfDuplicate: ", e)
         return False
+
 
 
 
