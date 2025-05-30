@@ -217,6 +217,10 @@ def checkIfUnwantedText(text):
             print("❌ Telegram link found, skipping message:", text)
             return True
 
+        if text_lower == "back":
+            print("❌ Only back msg no link:", text)
+            return True 
+
         return False  # Clean message
     except Exception as e:
         print("Error occurred in checkIfUnwantedText:", e)
@@ -465,8 +469,14 @@ def extract_first_url(text):
 
 
 
-def extract_real_url_if_wrapped(url):
+def unwanted_tracking_trail_exists(url):
     if "linksredirect" in url or "tracking.ajio.business" in url or "myntra.onelink.me" in url:
+        return True
+    return False
+
+
+def extract_real_url_if_wrapped(url):
+    if unwanted_tracking_trail_exists(url):
         print("it is either linkredirect or ajio or myntra link")
         parsed = urlparse(url)
         query_params = parse_qs(parsed.query)
@@ -493,7 +503,7 @@ def storeFirstLinkAndCheckIfDuplicate(text):
         long_url = unshorten_url(url_extracted)
         long_url = extract_real_url_if_wrapped(long_url)
 
-        if long_url is None:
+        if long_url is None or unwanted_tracking_trail_exists(long_url):
             return False
 
         key = None
