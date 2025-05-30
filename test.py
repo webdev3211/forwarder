@@ -40,6 +40,7 @@ executor = ThreadPoolExecutor(max_workers=WORKERS)  # Adjust based on expected p
 processed_links = {}
 url_regex = r'(https?://[^\s]+)'
 deleted_ids_memory = {}
+unshortened_link_cache = {}
 
 
 def trigger_cron_v2(deal_id=None):
