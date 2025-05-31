@@ -347,8 +347,6 @@ def update_forwarded_messages_sync(chat_and_msg_ids, modified_text, imgUrl):
             "imgUrl": imgUrl
         }
 
-        print("Hitting: ", api_url)
-
         try:
             response = requests.post(api_url, json=payload, timeout=CRON_TIMEOUT)
             if response.status_code == 200:
