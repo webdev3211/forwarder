@@ -337,18 +337,22 @@ def get_chat_and_msg_ids_from_db(msg_id):
         return None
 
 
-def update_forwarded_messages_sync(chat_and_msg_ids, modified_text,image_url):
+def update_forwarded_messages_sync(chat_and_msg_ids, modified_text, image_url):
     def run():
-        print("Doing update for text = ", modified_text)
-        api_url = BASE_URL + "/cron/update-messages"
-        payload = {
-            "chatandmsgids": chat_and_msg_ids,
-            "text": modified_text,
-            "imgUrl": imgUrl
-        }
-
         try:
+            print("Doing update for text = ", modified_text)
+            start = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
+            print(f"🚀 Started cron/update-messages at {start}")
+            api_url = BASE_URL + "/cron/update-messages"
+            payload = {
+                "chatandmsgids": chat_and_msg_ids,
+                "text": modified_text,
+                "imgUrl": imgUrl
+            }
+
             response = requests.post(api_url, json=payload, timeout=CRON_TIMEOUT)
+            end = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
+            print(f"🚀 Finished cron/update-messages at {end}")
             if response.status_code == 200:
                 data = response.json()
                 print("update resp: ", data)
@@ -358,8 +362,8 @@ def update_forwarded_messages_sync(chat_and_msg_ids, modified_text,image_url):
                     print(f"⚠️ Partial failure: {data.get('message')}")
             else:
                 print(f"❌ Failed to update messages, HTTP status: {response.status_code}")
-        except Exception as e:
-            print(f"❌ Exception during update request: {e}")
+        except requests.RequestException as e:
+            print("⚠️ Error triggering cron/update-messages:", e)
 
     executor_updates.submit(run)
 
