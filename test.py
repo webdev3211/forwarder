@@ -11,6 +11,7 @@ import re
 import threading
 import os
 import time
+import traceback
 
 from urllib.parse import urlparse, parse_qs, unquote
 from collections import deque
@@ -49,6 +50,10 @@ url_regex = r'(https?://[^\s]+)'
 deleted_ids_memory = {}
 unshortened_link_cache = {}
 data_pushed_to_db = {}
+
+
+executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
+executor_deletes = ThreadPoolExecutor(max_workers=5)    # For delayed deletes
 
 
 def trigger_cron_v2(deal_id=None):
@@ -231,8 +236,8 @@ def checkIfUnwantedText(text):
             print("❌ Telegram link found, skipping message:", text)
             return True
 
-        if text_lower == "back":
-            print("❌ Only back msg no link:", text)
+        if text_lower == "back" or text_lower == "loot":
+            print("❌ Only back/loot msg no link:", text)
             return True 
 
         return False  # Clean message
@@ -334,6 +339,7 @@ def get_chat_and_msg_ids_from_db(msg_id):
 
 def update_forwarded_messages_sync(chat_and_msg_ids, modified_text,image_url):
     def run():
+        print("Doing update for text = ", modified_text)
         api_url = BASE_URL + "/cron/update-messages"
         payload = {
             "chatandmsgids": chat_and_msg_ids,
@@ -354,7 +360,7 @@ def update_forwarded_messages_sync(chat_and_msg_ids, modified_text,image_url):
         except Exception as e:
             print(f"❌ Exception during update request: {e}")
 
-    executor.submit(run)
+    executor_updates.submit(run)
 
 
 def update_message_in_db(deal_id, modified_text):
@@ -446,8 +452,15 @@ def get_unique_actual_deleted_ids(deleted_ids):
 
 
 def handle_deletes_after_delay(deleted_ids):
-    time.sleep(DELETE_SLEEP_WAIT)  # Wait 2 minutes
-    handle_delete_instant(deleted_ids)
+    try:
+        print("⌛ Sleeping before deletion...")
+        time.sleep(DELETE_SLEEP_WAIT)
+        print("⏰ Awake! Now calling delete.")
+        handle_delete_instant(deleted_ids)
+    except Exception as e:
+        import traceback
+        print("❌ Exception in handle_deletes_after_delay:", traceback.format_exc())
+
 
 
 def handle_delete_instant(deleted_ids):
@@ -555,8 +568,6 @@ def storeFirstLinkAndCheckIfDuplicate(text):
         FLIPKART_LENGTH = LINK_KEY_LENGTHS.get("flipkart", 30)
         MYNTRA_LENGTH = LINK_KEY_LENGTHS.get("myntra", 40)
         AJIO_LENGTH = LINK_KEY_LENGTHS.get("ajio", 40)
-
-        print(f"AMAZON_LENGTH: {AMAZON_LENGTH} -- FLIPKART_LENGTH: {FLIPKART_LENGTH} -- MYNTRA_LENGTH: {MYNTRA_LENGTH} -- AJIO_LENGTH: {AJIO_LENGTH}")
 
         if "amazon" in long_url:
             match = re.search(r"(https?://[^ ]+/(?:dp|d)/[^/?]+)", long_url)
@@ -725,7 +736,7 @@ async def main():
                 do_update_operations(edited_msg, text, is_deal_over)
             else:
                 print(f"⏳Data is stilL not pushed to db, wait {UPDATE_WAIT_TIME}s before updating")
-                executor.submit(do_update_operations_after_delay, edited_msg, text, is_deal_over)
+                executor_updates.submit(do_update_operations_after_delay, edited_msg, text, is_deal_over)
 
         except Exception as e:
             print("❌ Error in edited_handler:", e)
@@ -743,8 +754,8 @@ async def main():
             if data_pushed_to_db.get(deleted_id):
                 handle_delete_instant([deleted_id])
             else:
-                print(f"⏳Data is stilL not pushed to db, wait {DELETE_SLEEP_WAIT}s before delete")
-                executor.submit(handle_deletes_after_delay, [deleted_id])
+                print(f"⏳Data is still not pushed to db, wait {DELETE_SLEEP_WAIT}s before delete")
+                executor_deletes.submit(handle_deletes_after_delay, [deleted_id])
 
         except Exception as e:
             print("❌ Error in delete_handler:", e)
