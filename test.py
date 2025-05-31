@@ -170,6 +170,10 @@ def checkIfCanUseDealApiV2(modified_text):
             print("❌❌ Do not use V2 because Bitl/Extp link found ")
             return False
 
+        if "grab" in modified_text or "fast" in modified_text:
+            print("❌❌ Do not use V2 because grab/fast found ")
+            return False
+
         # Allow v2 only if word count is >= 5
         return word_count >= 5
 
@@ -227,7 +231,7 @@ def checkIfUnwantedText(text):
             print("❌ Telegram link found, skipping message:", text)
             return True
 
-        if text_lower == "back":
+        if text_lower === "back":
             print("❌ Only back msg no link:", text)
             return True 
 
@@ -687,8 +691,7 @@ async def main():
             image_url = await upload_photo_get_url(msg)
 
             modified_text = modify_message(text, False)
-            print("Modified message success✅✅")
-            print(modified_text)
+            print("Modified message success✅✅ ", modified_text)
 
             if checkIfUnwantedText(text):
                 print("❌ Modified Msg contain unwanted things so dropping: " + text)
