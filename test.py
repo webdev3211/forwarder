@@ -337,33 +337,30 @@ def get_chat_and_msg_ids_from_db(msg_id):
         return None
 
 
-def update_forwarded_messages_sync(chat_and_msg_ids, modified_text, image_url):
+def update_forwarded_messages_sync(chat_and_msg_ids, modified_text, imgUrl):
     def run():
-        try:
-            print("Doing update for text = ", modified_text)
-            start = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
-            print(f"🚀 Started cron/update-messages at {start}")
-            api_url = BASE_URL + "/cron/update-messages"
-            payload = {
-                "chatandmsgids": chat_and_msg_ids,
-                "text": modified_text,
-                "imgUrl": imgUrl
-            }
+        print("Doing update for text = ", modified_text)
+        api_url = BASE_URL + "/cron/update-messages"
+        payload = {
+            "chatandmsgids": chat_and_msg_ids,
+            "text": modified_text,
+            "imgUrl": imgUrl
+        }
+        
+        print("Hitting: ", api_url)
 
+        try:
             response = requests.post(api_url, json=payload, timeout=CRON_TIMEOUT)
-            end = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
-            print(f"🚀 Finished cron/update-messages at {end}")
             if response.status_code == 200:
                 data = response.json()
-                print("update resp: ", data)
                 if data.get("success"):
                     print(f"✅ Successfully updated all messages: {data.get('message')}")
                 else:
                     print(f"⚠️ Partial failure: {data.get('message')}")
             else:
                 print(f"❌ Failed to update messages, HTTP status: {response.status_code}")
-        except requests.RequestException as e:
-            print("⚠️ Error triggering cron/update-messages:", e)
+        except Exception as e:
+            print(f"❌ Exception during update request: {e}")
 
     executor_updates.submit(run)
 
@@ -652,8 +649,6 @@ def do_update_operations(edited_msg, text, is_deal_over):
 
 
 
-
-
 client = TelegramClient('forwarder_session2', api_id, api_hash)
 
 
@@ -737,36 +732,12 @@ async def main():
             text = replace_text_links_with_urls(edited_msg)
             is_deal_over = checkIfDealIsOver(text)
 
+            
             if data_pushed_to_db.get(edited_msg.id):
                 do_update_operations(edited_msg, text, is_deal_over)
             else:
                 print(f"⏳Data is stilL not pushed to db, wait {UPDATE_WAIT_TIME}s before updating")
-                try:
-                    image_url = ""
-
-                    BTDAILY_DEAL_ID = None
-
-                    modified_text = modify_message(text, is_deal_over)
-                    store = getStore(modified_text)
-
-                    alldeals_data = get_chat_and_msg_ids_from_db(edited_msg.id)
-
-                    if alldeals_data is not None:
-                        chat_and_msg_ids = alldeals_data.get("chatandmsgids")
-                        if not chat_and_msg_ids:
-                            print("⚠️ No forwarded message mapping found, skipping...")
-                            return
-                        BTDAILY_DEAL_ID = alldeals_data.get("id")
-                        image_url = alldeals_data.get("imgurl")
-                    else:
-                        return
-
-                    update_message_in_db(BTDAILY_DEAL_ID, modified_text)
-                    update_forwarded_messages_sync(chat_and_msg_ids, modified_text, image_url)
-                except Exception as e:
-                    print("Some error in direct update: ", e)
-
-                # executor_updates.submit(do_update_operations_after_delay, edited_msg, text, is_deal_over)
+                executor_updates.submit(do_update_operations_after_delay, edited_msg, text, is_deal_over)
 
         except Exception as e:
             print("❌ Error in edited_handler:", e)
@@ -784,30 +755,8 @@ async def main():
             if data_pushed_to_db.get(deleted_id):
                 handle_delete_instant([deleted_id])
             else:
-                print(f"⏳Data is still not pushed to db, wait {DELETE_SLEEP_WAIT}s before delete")
-                try:
-                    deleted_ids = get_unique_actual_deleted_ids([deleted_id])
-                    print("🚀 Msg ID submitted for deletion: ", deleted_ids)
-
-                    for msg_id in deleted_ids:
-                        alldeals_data = get_chat_and_msg_ids_from_db(msg_id)
-
-                        if alldeals_data is not None:
-                            chat_and_msg_ids = alldeals_data.get("chatandmsgids")
-                            if not chat_and_msg_ids:
-                                print("⚠️ No forwarded message mapping found, skipping...")
-                                continue
-                            BTDAILY_DEAL_ID = alldeals_data.get("id")
-                            text = alldeals_data.get("deal") + " OVER "
-
-                            update_forwarded_messages_sync(chat_and_msg_ids, text, "")
-                            print("DELETED MSG_ID: ", msg_id)
-                        else:
-                            print(f"❗No DB mapping for msg_id {msg_id} even after delay.")
-                except Exception as e:
-                    print("Some error in direct delete: ", e)
-
-                # executor_deletes.submit(handle_deletes_after_delay, [deleted_id])
+                print(f"⏳Data is stilL not pushed to db, wait {DELETE_SLEEP_WAIT}s before delete")
+                executor_deletes.submit(handle_deletes_after_delay, [deleted_id])
 
         except Exception as e:
             print("❌ Error in delete_handler:", e)
