@@ -158,18 +158,18 @@ def checkIfCanUseDealApiV2(modified_text):
 
         # Block v2 if any excluded keyword is present
         if any(keyword in lower_text for keyword in excluded_keywords):
-            print("Do not use V2 because keyword found = " + keyword)
+            print("Do not use V2 because keyword found")
             return False
 
         if "https://extp.in" in modified_text or "https://bitl.in" in modified_text:
-            print("❌❌ Do not use V2 because Bitl/Extp link found = ")
+            print("❌❌ Do not use V2 because Bitl/Extp link found ")
             return False
 
         # Allow v2 only if word count is >= 5
         return word_count >= 5
 
     except Exception as e:
-        print("Some error in checkIfCanUseDealApiV2: ", e)
+        print("❌❌Some error in checkIfCanUseDealApiV2: ", e)
 
     return True
 
@@ -351,7 +351,7 @@ def checkServerHealth():
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
-            print("✅ Btdai is healthy:", response.text)
+            print("✅ Btdaily is healthy:", response.text)
             return True
         else:
             print(f"⚠️ Server responded with status code {response.status_code}")
@@ -408,7 +408,7 @@ def get_unique_actual_deleted_ids(deleted_ids):
             
         return new_ids
     except Exception as e:
-        print("Some error while deleting from memory: ", e)
+        print("❌❌ Some error while deleting from memory: ", e)
         return deleted_ids
 
 
@@ -464,7 +464,7 @@ def unshorten_url(extracted_url):
             print("Failed unshortening url: ", extracted_url)
             return None
     except Exception as e:
-        print("Some error while unshortening url: ", e)
+        print("❌❌ Some error while unshortening url: ", e)
         return None
 
 
@@ -551,7 +551,7 @@ def storeFirstLinkAndCheckIfDuplicate(text):
 
         return False
     except Exception as e:
-        print("Some error at storeFirstLinkAndCheckIfDuplicate: ", e)
+        print("❌❌ Some error at storeFirstLinkAndCheckIfDuplicate: ", e)
         return False
 
 
