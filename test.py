@@ -509,6 +509,8 @@ def storeFirstLinkAndCheckIfDuplicate(text):
         long_url = unshorten_url(url_extracted)
         long_url = extract_real_url_if_wrapped(long_url)
 
+        print(f"url_extracted:  {url_extracted} and its long_url: {long_url}")
+
         if long_url is None or unwanted_tracking_trail_exists(long_url):
             return False
 
@@ -518,6 +520,8 @@ def storeFirstLinkAndCheckIfDuplicate(text):
         FLIPKART_LENGTH = LINK_KEY_LENGTHS.get("flipkart", 30)
         MYNTRA_LENGTH = LINK_KEY_LENGTHS.get("myntra", 40)
         AJIO_LENGTH = LINK_KEY_LENGTHS.get("ajio", 40)
+
+        print(f"AMAZON_LENGTH: {AMAZON_LENGTH} -- FLIPKART_LENGTH: {FLIPKART_LENGTH} -- MYNTRA_LENGTH: {MYNTRA_LENGTH} -- AJIO_LENGTH: {AJIO_LENGTH}")
 
         if "amazon" in long_url:
             match = re.search(r"(https?://[^ ]+/(?:dp|d)/[^/?]+)", long_url)
@@ -539,17 +543,24 @@ def storeFirstLinkAndCheckIfDuplicate(text):
         if key is None:
             return False
 
-    
-        # Best-effort sync check using stored keys
+        # Fast check
+        if key in unshortened_link_cache:
+            print(f"🛑 Exact duplicate: {key}")
+            return True
+
+        # Fuzzy check
         for existing_key in unshortened_link_cache:
+            if not existing_key or existing_key == key:
+                continue
             if key in existing_key or existing_key in key:
-                print("Duplicate text: " + text + " BECAUSE OF KEY = " + key)
+                print(f"🛑 Fuzzy duplicate: {key} ~ matches {existing_key}")
                 return True
 
-
+        # Store new
         unshortened_link_cache[key] = (time.time(), long_url)
-
+        print(f"✅ Stored new deal key: {key}")
         return False
+
     except Exception as e:
         print("❌❌ Some error at storeFirstLinkAndCheckIfDuplicate: ", e)
         return False
