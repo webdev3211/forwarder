@@ -37,6 +37,9 @@ DELETED_ID_TTL_SECONDS = int(os.getenv("DELETED_ID_TTL_SECONDS"))
 HANDLE_DUPLICATES = os.getenv("HANDLE_DUPLICATES")
 LINK_STORAGE_CACHE_DURATION = int(os.getenv("LINK_STORAGE_CACHE_DURATION"))
 LINK_KEY_LENGTHS = json.loads(os.getenv("LINK_KEY_LENGTHS", "{}"))
+UPDATE_WAIT_TIME = int(os.getenv("UPDATE_WAIT_TIME"))
+
+
 
 
 LOCAL_TEST_BYPASS = False
@@ -45,6 +48,7 @@ processed_links = {}
 url_regex = r'(https?://[^\s]+)'
 deleted_ids_memory = {}
 unshortened_link_cache = {}
+data_pushed_to_db = {}
 
 
 def trigger_cron_v2(deal_id=None):
@@ -63,7 +67,8 @@ def trigger_cron_v2(deal_id=None):
 
             response = requests.post(url, json=payload, timeout=CRON_TIMEOUT)
             end = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
-            print(f"🚀 Finished cron/v2 for deal_id={deal_id} at {end}")
+            print(f"🚀 Finished cron/v2 for deal_id={deal_id} at {end} with tg_msg_id={tg_msg_id}")
+            data_pushed_to_db[tg_msg_id] = True
         except requests.RequestException as e:
             print("⚠️ Error triggering cron/v2:", e)
 
@@ -244,6 +249,30 @@ def checkIfDealIsOver(text):
     return False
 
 
+async def check_if_msg_has_image(msg):
+    photo_media = None
+    
+    try:
+        # Case 1: Photo in the main message
+        if isinstance(msg.media, MessageMediaPhoto):
+            photo_media = msg.media
+        # Case 2: Photo in the replied-to message
+        elif msg.reply_to_msg_id:
+            try:
+                replied_msg = await msg.get_reply_message()
+                if isinstance(replied_msg.media, MessageMediaPhoto):
+                    photo_media = replied_msg.media
+            except Exception as e:
+                print(f"⚠️ Could not fetch reply message media: {e}")
+
+        if photo_media is None:
+            return False
+        else:
+            return True
+    except Exception as e:
+        return False
+
+
 async def upload_photo_get_url(msg):
     photo_media = None
     image_url = ""
@@ -413,24 +442,26 @@ def get_unique_actual_deleted_ids(deleted_ids):
 
 
 def handle_deletes_after_delay(deleted_ids):
+    time.sleep(DELETE_SLEEP_WAIT)  # Wait 2 minutes
+    handle_delete_instant(deleted_ids)
 
+
+def handle_delete_instant(deleted_ids):
     deleted_ids = get_unique_actual_deleted_ids(deleted_ids)
     print("🚀 Msg ID submitted for deletion: ", deleted_ids)
-    time.sleep(DELETE_SLEEP_WAIT)  # Wait 2 minutes
 
     for msg_id in deleted_ids:
         alldeals_data = get_chat_and_msg_ids_from_db(msg_id)
 
         if alldeals_data is not None:
             chat_and_msg_ids = alldeals_data.get("chatandmsgids")
-            deal_msg = alldeals_data.get("deal")
             if not chat_and_msg_ids:
-                print("⚠️ No forwarded message mapping found, skipping... for text: ", deal_msg)
+                print("⚠️ No forwarded message mapping found, skipping...")
                 continue
             BTDAILY_DEAL_ID = alldeals_data.get("id")
-            text = deal_msg + " OVER "
+            text = alldeals_data.get("deal") + " OVER "
 
-            update_forwarded_messages_sync(chat_and_msg_ids, text,"")
+            update_forwarded_messages_sync(chat_and_msg_ids, text, "")
             print("DELETED MSG_ID: ", msg_id)
         else:
             print(f"❗No DB mapping for msg_id {msg_id} even after delay.")
@@ -568,6 +599,41 @@ def storeFirstLinkAndCheckIfDuplicate(text):
 
 
 
+
+def do_update_operations_after_delay(edited_msg, text, is_deal_over):
+    time.sleep(UPDATE_WAIT_TIME)
+    do_update_operations(edited_msg, text, is_deal_over)
+
+
+
+def do_update_operations(edited_msg, text, is_deal_over):
+    image_url = ""
+
+    BTDAILY_DEAL_ID = None
+
+    modified_text = modify_message(text, is_deal_over)
+    store = getStore(modified_text)
+
+    alldeals_data = get_chat_and_msg_ids_from_db(edited_msg.id)
+
+    if alldeals_data is not None:
+        chat_and_msg_ids = alldeals_data.get("chatandmsgids")
+        if not chat_and_msg_ids:
+            print("⚠️ No forwarded message mapping found, skipping...")
+            return
+        BTDAILY_DEAL_ID = alldeals_data.get("id")
+        image_url = alldeals_data.get("imgurl")
+    else:
+        return
+
+    update_forwarded_messages_sync(chat_and_msg_ids, modified_text, image_url)
+    update_message_in_db(BTDAILY_DEAL_ID, modified_text)
+
+
+
+
+
+
 client = TelegramClient('forwarder_session2', api_id, api_hash)
 
 
@@ -652,26 +718,11 @@ async def main():
             text = replace_text_links_with_urls(edited_msg)
             is_deal_over = checkIfDealIsOver(text)
 
-            BTDAILY_DEAL_ID = None
-            image_url = ""
-            modified_text = modify_message(text, is_deal_over)
-            store = getStore(modified_text)
-
-            alldeals_data = get_chat_and_msg_ids_from_db(edited_msg.id)
-
-            if alldeals_data is not None:
-                chat_and_msg_ids = alldeals_data.get("chatandmsgids")
-                if not chat_and_msg_ids:
-                    print("⚠️ No forwarded message mapping found, skipping...")
-                    return
-                BTDAILY_DEAL_ID = alldeals_data.get("id")
-                image_url = alldeals_data.get("imgurl")
+            if data_pushed_to_db.get(edited_msg.id):
+                do_update_operations(edited_msg, text, is_deal_over)
             else:
-                return
-
-
-            update_forwarded_messages_sync(chat_and_msg_ids, modified_text,image_url)
-            update_message_in_db(BTDAILY_DEAL_ID, modified_text)
+                print(f"⏳Data is stilL not pushed to db, wait {UPDATE_WAIT_TIME}s before updating")
+                executor.submit(do_update_operations_after_delay, edited_msg, text, is_deal_over)
 
         except Exception as e:
             print("❌ Error in edited_handler:", e)
@@ -686,7 +737,11 @@ async def main():
             checkServerHealth()
 
             # Submit the delayed task to a thread
-            executor.submit(handle_deletes_after_delay, [deleted_id])
+            if data_pushed_to_db.get(deleted_id):
+                handle_delete_instant([deleted_id])
+            else:
+                print(f"⏳Data is stilL not pushed to db, wait {DELETE_SLEEP_WAIT}s before delete")
+                executor.submit(handle_deletes_after_delay, [deleted_id])
 
         except Exception as e:
             print("❌ Error in delete_handler:", e)
