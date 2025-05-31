@@ -158,6 +158,11 @@ def checkIfCanUseDealApiV2(modified_text):
 
         # Block v2 if any excluded keyword is present
         if any(keyword in lower_text for keyword in excluded_keywords):
+            print("Do not use V2 because keyword found = " + keyword)
+            return False
+
+        if "https://extp.in" in modified_text or "https://bitl.in" in modified_text:
+            print("❌❌ Do not use V2 because Bitl/Extp link found = ")
             return False
 
         # Allow v2 only if word count is >= 5
@@ -294,12 +299,13 @@ def get_chat_and_msg_ids_from_db(msg_id):
         return None
 
 
-def update_forwarded_messages_sync(chat_and_msg_ids, modified_text):
+def update_forwarded_messages_sync(chat_and_msg_ids, modified_text,image_url):
     def run():
         api_url = BASE_URL + "/cron/update-messages"
         payload = {
             "chatandmsgids": chat_and_msg_ids,
-            "text": modified_text
+            "text": modified_text,
+            "imgUrl": imgUrl
         }
 
         try:
@@ -424,7 +430,7 @@ def handle_deletes_after_delay(deleted_ids):
             BTDAILY_DEAL_ID = alldeals_data.get("id")
             text = deal_msg + " OVER "
 
-            update_forwarded_messages_sync(chat_and_msg_ids, text)
+            update_forwarded_messages_sync(chat_and_msg_ids, text,"")
             print("DELETED MSG_ID: ", msg_id)
         else:
             print(f"❗No DB mapping for msg_id {msg_id} even after delay.")
@@ -470,7 +476,7 @@ def extract_first_url(text):
 
 
 def unwanted_tracking_trail_exists(url):
-    if "linksredirect" in url or "tracking.ajio.business" in url or "myntra.onelink.me" in url:
+    if "linksredirect" in url or "linkredirect" in url or "tracking.ajio.business" in url or "myntra.onelink.me" in url:
         return True
     return False
 
@@ -556,7 +562,7 @@ client = TelegramClient('forwarder_session2', api_id, api_hash)
 
 async def main():
     await client.start(phone=phone_number)
-    await client.send_message(TEST_CHANNEL, "Hey, I have started ✅")
+    await client.send_message(TEST_CHANNEL, "PROD: Hey, I have started ✅")
 
     sources = []
     for url in channel_urls:
@@ -648,11 +654,12 @@ async def main():
                     print("⚠️ No forwarded message mapping found, skipping...")
                     return
                 BTDAILY_DEAL_ID = alldeals_data.get("id")
+                image_url = alldeals_data.get("imgurl")
             else:
                 return
 
 
-            update_forwarded_messages_sync(chat_and_msg_ids, modified_text)
+            update_forwarded_messages_sync(chat_and_msg_ids, modified_text,image_url)
             update_message_in_db(BTDAILY_DEAL_ID, modified_text)
 
         except Exception as e:
@@ -662,13 +669,13 @@ async def main():
     @client.on(events.MessageDeleted(chats=sources))
     async def delete_handler(event):
         try:
-            deleted_ids = event.deleted_ids
-            print(f"🗑️ Message(s) deleted: {deleted_ids}")
+            deleted_id = event.deleted_id
+            print(f"🗑️ Message(s) deleted: {deleted_id}")
 
             checkServerHealth()
 
             # Submit the delayed task to a thread
-            executor.submit(handle_deletes_after_delay, deleted_ids)
+            executor.submit(handle_deletes_after_delay, [deleted_id])
 
         except Exception as e:
             print("❌ Error in delete_handler:", e)
