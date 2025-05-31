@@ -231,7 +231,7 @@ def checkIfUnwantedText(text):
             print("❌ Telegram link found, skipping message:", text)
             return True
 
-        if text_lower === "back":
+        if text_lower == "back":
             print("❌ Only back msg no link:", text)
             return True 
 
