@@ -346,7 +346,7 @@ def update_forwarded_messages_sync(chat_and_msg_ids, modified_text, imgUrl):
             "text": modified_text,
             "imgUrl": imgUrl
         }
-        
+
         print("Hitting: ", api_url)
 
         try:
@@ -475,13 +475,14 @@ def handle_delete_instant(deleted_ids):
         if alldeals_data is not None:
             chat_and_msg_ids = alldeals_data.get("chatandmsgids")
             if not chat_and_msg_ids:
-                print("⚠️ No forwarded message mapping found, skipping...")
+                print("⚠️ No message mapping found to be deleted, skipping...")
                 continue
-            BTDAILY_DEAL_ID = alldeals_data.get("id")
-            text = alldeals_data.get("deal") + " OVER "
+            else:
+                BTDAILY_DEAL_ID = alldeals_data.get("id")
+                text = alldeals_data.get("deal") + " OVER "
 
-            update_forwarded_messages_sync(chat_and_msg_ids, text, "")
-            print("DELETED MSG_ID: ", msg_id)
+                update_forwarded_messages_sync(chat_and_msg_ids, text, "")
+                print("DELETED MSG_ID: ", msg_id)
         else:
             print(f"❗No DB mapping for msg_id {msg_id} even after delay.")
 
@@ -736,6 +737,8 @@ async def main():
             if data_pushed_to_db.get(edited_msg.id):
                 do_update_operations(edited_msg, text, is_deal_over)
             else:
+                print("Once trying update directly")
+                do_update_operations(edited_msg, text, is_deal_over)
                 print(f"⏳Data is stilL not pushed to db, wait {UPDATE_WAIT_TIME}s before updating")
                 executor_updates.submit(do_update_operations_after_delay, edited_msg, text, is_deal_over)
 
@@ -755,6 +758,8 @@ async def main():
             if data_pushed_to_db.get(deleted_id):
                 handle_delete_instant([deleted_id])
             else:
+                print("Once trying delete directly")
+                handle_delete_instant([deleted_id])
                 print(f"⏳Data is stilL not pushed to db, wait {DELETE_SLEEP_WAIT}s before delete")
                 executor_deletes.submit(handle_deletes_after_delay, [deleted_id])
 
