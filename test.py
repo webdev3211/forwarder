@@ -179,6 +179,12 @@ def checkIfCanUseDealApiV2(modified_text):
             print("❌❌ Do not use V2 because grab/fast found ")
             return False
 
+        # Count number of links
+        links = re.findall(r'https?://\S+', modified_text)
+        if len(links) >= 3:
+            print(f"❌❌ Do not use V2 because {len(links)} links found")
+            return False
+
         # Allow v2 only if word count is >= 5
         return word_count >= 5
 
