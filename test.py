@@ -39,7 +39,7 @@ HANDLE_DUPLICATES = os.getenv("HANDLE_DUPLICATES")
 LINK_STORAGE_CACHE_DURATION = int(os.getenv("LINK_STORAGE_CACHE_DURATION"))
 LINK_KEY_LENGTHS = json.loads(os.getenv("LINK_KEY_LENGTHS", "{}"))
 UPDATE_WAIT_TIME = int(os.getenv("UPDATE_WAIT_TIME"))
-
+DELETE_CHANNEL_ID = int(os.getenv("DELETE_CHANNEL_ID"))
 
 
 
@@ -171,8 +171,8 @@ def checkIfCanUseDealApiV2(modified_text):
             print("Do not use V2 because keyword found")
             return False
 
-        if "https://extp.in" in modified_text or "https://bitl.in" in modified_text:
-            print("❌❌ Do not use V2 because Bitl/Extp link found ")
+        if "https://extp.in" in modified_text or "https://bitl.in" in modified_text or "https://myntr" in modified_text:
+            print("❌❌ Do not use V2 because Bitl/Extp/Myntr link found ")
             return False
 
         if "grab" in modified_text or "fast" in modified_text:
@@ -236,8 +236,8 @@ def checkIfUnwantedText(text):
             print("❌ Telegram link found, skipping message:", text)
             return True
 
-        if text_lower == "back" or text_lower == "loot":
-            print("❌ Only back/loot msg no link:", text)
+        if text_lower == "back" or text_lower == "loot" or text_lower == "grab":
+            print("❌ Only back/loot/grab msg no link:", text)
             return True 
 
         return False  # Clean message
@@ -650,6 +650,41 @@ def do_update_operations(edited_msg, text, is_deal_over):
 
 
 
+
+def do_update_delete(msg_id, text):
+    image_url = ""
+
+    text = text + ' OVER '
+
+    alldeals_data = get_chat_and_msg_ids_from_db(msg_id)
+
+    if alldeals_data is not None:
+        chat_and_msg_ids = alldeals_data.get("chatandmsgids")
+        if not chat_and_msg_ids:
+            print("⚠️ No forwarded message mapping found, skipping...")
+            return
+        BTDAILY_DEAL_ID = alldeals_data.get("id")
+        image_url = alldeals_data.get("imgurl")
+    else:
+        return
+
+    update_forwarded_messages_sync(chat_and_msg_ids, text, image_url)
+
+
+
+def delete_msg_from_all_grps(event):
+    edited_msg = event.message
+    text = replace_text_links_with_urls(edited_msg)
+    match = re.search(r"\[(\d+)\]", text)
+    if match:
+        msg_id = match.group(1)
+        print(f"Deleting {msg_id} msg from all grps")
+        do_update_delete(msg_id, text)
+    else:
+        print("No match found")
+
+
+
 client = TelegramClient('forwarder_session2', api_id, api_hash)
 
 
@@ -703,14 +738,13 @@ async def main():
             image_url = await upload_photo_get_url(msg)
 
             modified_text = modify_message(text, False)
-            print("Modified message success✅✅ ", modified_text)
+            print("Modified message success✅✅ ")
 
             if checkIfUnwantedText(text):
                 print("❌ Modified Msg contain unwanted things so dropping: " + text)
                 return
 
             store = getStore(modified_text)
-            print("Store fetched success✅✅")
 
             deal_id = save_to_db(modified_text, store, image_url, tg_msg_id)
             if deal_id is not None:
@@ -725,10 +759,18 @@ async def main():
     @client.on(events.MessageEdited(chats=sources))
     async def edited_handler(event):
         try:
+            checkServerHealth()
+
+            try:
+                channel_id = event.message.peer_id.channel_id
+                if channel_id == DELETE_CHANNEL_ID:
+                    delete_msg_from_all_grps(event)
+                    return
+            except Exception as e:
+                print("Some error in deleting from all grps: ", e)
+
             edited_msg = event.message
             print("✏️ Message was edited!")
-
-            checkServerHealth()
 
             text = replace_text_links_with_urls(edited_msg)
             is_deal_over = checkIfDealIsOver(text)
