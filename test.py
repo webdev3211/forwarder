@@ -463,8 +463,10 @@ def handle_deletes_after_delay(deleted_ids):
 
 
 
-def handle_delete_instant(deleted_ids):
-    deleted_ids = get_unique_actual_deleted_ids(deleted_ids)
+def handle_delete_instant(deleted_ids, check_duplicate = True):
+    if check_duplicate:
+        deleted_ids = get_unique_actual_deleted_ids(deleted_ids)
+        
     print("🚀 Msg ID submitted for deletion: ", deleted_ids)
 
     for msg_id in deleted_ids:
@@ -757,7 +759,7 @@ async def main():
                 handle_delete_instant([deleted_id])
             else:
                 print("Once trying delete directly")
-                handle_delete_instant([deleted_id])
+                handle_delete_instant([deleted_id], False)
                 print(f"⏳Data is stilL not pushed to db, wait {DELETE_SLEEP_WAIT}s before delete")
                 executor_deletes.submit(handle_deletes_after_delay, [deleted_id])
 
