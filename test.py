@@ -708,6 +708,11 @@ async def main():
         except Exception as e:
             print(f"⚠️ Failed to fetch private entity for ID {channel_id}: {e}")
 
+
+    updated_sources = sources.copy()
+    updated_sources.append(await client.get_entity('https://t.me/bt_auto_trade_logs'.strip()))
+
+
     print("No of sources: ", len(sources))
 
 
@@ -756,7 +761,7 @@ async def main():
             print("❌ Error in message handler:", e)
 
 
-    @client.on(events.MessageEdited(chats=sources))
+    @client.on(events.MessageEdited(chats=updated_sources))
     async def edited_handler(event):
         try:
             checkServerHealth()
