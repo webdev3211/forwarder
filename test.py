@@ -40,7 +40,7 @@ LINK_STORAGE_CACHE_DURATION = int(os.getenv("LINK_STORAGE_CACHE_DURATION"))
 LINK_KEY_LENGTHS = json.loads(os.getenv("LINK_KEY_LENGTHS", "{}"))
 UPDATE_WAIT_TIME = int(os.getenv("UPDATE_WAIT_TIME"))
 DELETE_CHANNEL_ID = int(os.getenv("DELETE_CHANNEL_ID"))
-
+DELETE_CHANNEL_URL = os.getenv("DELETE_CHANNEL_URL")
 
 
 LOCAL_TEST_BYPASS = False
@@ -709,8 +709,11 @@ async def main():
             print(f"⚠️ Failed to fetch private entity for ID {channel_id}: {e}")
 
 
-    updated_sources = sources.copy()
-    updated_sources.append(await client.get_entity('https://t.me/bt_auto_trade_logs'.strip()))
+    update_sources = sources.copy()
+    try:
+        update_sources.append(await client.get_entity(DELETE_CHANNEL_URL.strip()))
+    except Exception as e:
+        print(f"Some error while adding delete_channel to update sources: {e}")
 
 
     print("No of sources: ", len(sources))
@@ -761,7 +764,7 @@ async def main():
             print("❌ Error in message handler:", e)
 
 
-    @client.on(events.MessageEdited(chats=updated_sources))
+    @client.on(events.MessageEdited(chats=update_sources))
     async def edited_handler(event):
         try:
             checkServerHealth()
@@ -779,6 +782,10 @@ async def main():
 
             text = replace_text_links_with_urls(edited_msg)
             is_deal_over = checkIfDealIsOver(text)
+
+            if checkIfUnwantedText(text):
+                print("❌ Edited Msg contain unwanted things so dropping: " + text)
+                return
 
             
             if data_pushed_to_db.get(edited_msg.id):
