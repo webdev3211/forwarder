@@ -56,7 +56,7 @@ executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
 executor_deletes = ThreadPoolExecutor(max_workers=5)    # For delayed deletes
 
 
-def trigger_cron_v2(deal_id=None):
+def trigger_cron_v2(deal_id=None,tg_msg_id=""):
     def run():
         try:
             url = BASE_URL + "/cron/v2"
@@ -540,7 +540,6 @@ def unwanted_tracking_trail_exists(url):
 
 def extract_real_url_if_wrapped(url):
     if unwanted_tracking_trail_exists(url):
-        print("it is either linkredirect or ajio or myntra link")
         parsed = urlparse(url)
         query_params = parse_qs(parsed.query)
 
@@ -566,7 +565,7 @@ def storeFirstLinkAndCheckIfDuplicate(text):
         long_url = unshorten_url(url_extracted)
         long_url = extract_real_url_if_wrapped(long_url)
 
-        print(f"url_extracted:  {url_extracted} and its long_url: {long_url}")
+        # print(f"url_extracted:  {url_extracted} and its long_url: {long_url}")
 
         if long_url is None or unwanted_tracking_trail_exists(long_url):
             return False
@@ -762,7 +761,7 @@ async def main():
 
             deal_id = save_to_db(modified_text, store, image_url, tg_msg_id)
             if deal_id is not None:
-                trigger_cron_v2(deal_id)
+                trigger_cron_v2(deal_id, tg_msg_id)
 
             print("Everything done successfully ✅✅")
 
@@ -789,10 +788,9 @@ async def main():
             text = replace_text_links_with_urls(edited_msg)
             is_deal_over = checkIfDealIsOver(text)
 
-            if checkIfUnwantedText(text):
+            if is_deal_over or checkIfUnwantedText(text):
                 print("❌ Edited Msg contain unwanted things so dropping: " + text)
                 return
-
             
             if data_pushed_to_db.get(edited_msg.id):
                 do_update_operations(edited_msg, text, is_deal_over)
