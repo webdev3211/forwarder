@@ -519,7 +519,7 @@ def unshorten_url(extracted_url):
             return data.get("url")
         else:
             print("Failed unshortening url: ", extracted_url)
-            return None
+            return extracted_url
     except Exception as e:
         print("❌❌ Some error while unshortening url: ", e)
         return None
@@ -539,20 +539,22 @@ def unwanted_tracking_trail_exists(url):
 
 
 def extract_real_url_if_wrapped(url):
-    if unwanted_tracking_trail_exists(url):
-        parsed = urlparse(url)
-        query_params = parse_qs(parsed.query)
+    if url is not None:
+        if unwanted_tracking_trail_exists(url):
+            parsed = urlparse(url)
+            query_params = parse_qs(parsed.query)
 
-        # Check for known redirect parameters
-        for param in ["dl", "redirect", "u", "url", "target", "af_ios_url"]:
-            if param in query_params:
-                # Return the first occurrence, decoded
-                return unquote(query_params[param][0])
+            # Check for known redirect parameters
+            for param in ["dl", "redirect", "u", "url", "target", "af_ios_url"]:
+                if param in query_params:
+                    # Return the first occurrence, decoded
+                    return unquote(query_params[param][0])
 
-        return url
+            return url
+        else:
+            return url
     else:
         return url
-
 
 def storeFirstLinkAndCheckIfDuplicate(text):
     try:
