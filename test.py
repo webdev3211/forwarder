@@ -46,6 +46,7 @@ TWITTER_API_KEY = os.getenv("TWITTER_API_KEY")
 TWITTER_API_SECRET = os.getenv("TWITTER_API_SECRET")
 TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN")
 TWITTER_ACCESS_SECRET = os.getenv("TWITTER_ACCESS_SECRET")
+POST_TO_TWITTER = os.getenv("POST_TO_TWITTER")
 
 
 
@@ -100,7 +101,8 @@ def trigger_cron_v2(deal_id=None,tg_msg_id="",modified_text="", imageUrl=None):
             end = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
             print(f"🚀 Finished cron/v2 for deal_id={deal_id} at {end} with tg_msg_id={tg_msg_id}")
             data_pushed_to_db[tg_msg_id] = True
-            post_deal_to_twitter(modified_text, imageUrl)
+            if POST_TO_TWITTER is True or POST_TO_TWITTER == "True":
+                post_deal_to_twitter(modified_text, imageUrl)
 
         except requests.RequestException as e:
             print("⚠️ Error triggering cron/v2:", e)
