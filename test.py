@@ -102,7 +102,8 @@ def trigger_cron_v2(deal_id=None,tg_msg_id="",modified_text="", imageUrl=None):
             end = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
             print(f"🚀 Finished cron/v2 for deal_id={deal_id} at {end} with tg_msg_id={tg_msg_id}")
             data_pushed_to_db[tg_msg_id] = True
-            if POST_TO_TWITTER is True or POST_TO_TWITTER == "True":
+            # ✅ Post to Twitter only if there are 5 or more words in modified_text
+            if (POST_TO_TWITTER is True or POST_TO_TWITTER == "True") and len(modified_text.strip().split()) >= 5:
                 post_deal_to_twitter(modified_text, imageUrl)
 
         except requests.RequestException as e:
@@ -124,7 +125,6 @@ def post_deal_to_twitter(text, imageUrl):
             response = requests.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
-            print(data)
 
             tweet_text = None
             if data.get("success"):
