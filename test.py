@@ -2,7 +2,7 @@ from telethon import TelegramClient, events
 from telethon.tl.types import MessageMediaPhoto, MessageEntityTextUrl, PeerChannel
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 import requests
@@ -17,6 +17,7 @@ import tweepy
 
 from urllib.parse import urlparse, parse_qs, unquote
 from collections import deque
+
 
 api_id = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
@@ -58,6 +59,7 @@ url_regex = r'(https?://[^\s]+)'
 deleted_ids_memory = {}
 unshortened_link_cache = {}
 data_pushed_to_db = {}
+last_tweet_time = {"timestamp": None}
 
 
 executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
@@ -84,11 +86,13 @@ twitter_client = tweepy.Client(
 
 print("twitter client: ", twitter_client)
 
-def trigger_cron_v2(deal_id=None,tg_msg_id="",modified_text="", imageUrl=None):
+
+
+def trigger_cron_v2(deal_id=None, tg_msg_id="", modified_text="", imageUrl=None):
     def run():
         try:
             url = BASE_URL + "/cron/v2"
-            start = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
+            start = datetime.now().strftime("%H:%M:%S")
             print(f"🚀 Started cron/v2 for deal_id={deal_id} at {start}")
 
             payload = {
@@ -99,17 +103,29 @@ def trigger_cron_v2(deal_id=None,tg_msg_id="",modified_text="", imageUrl=None):
                 payload["deal_id"] = deal_id
 
             response = requests.post(url, json=payload, timeout=CRON_TIMEOUT)
-            end = datetime.now().strftime("%H:%M:%S")  # Current time in hh:mm:ss
+            end = datetime.now().strftime("%H:%M:%S")
             print(f"🚀 Finished cron/v2 for deal_id={deal_id} at {end} with tg_msg_id={tg_msg_id}")
             data_pushed_to_db[tg_msg_id] = True
-            # ✅ Post to Twitter only if there are 5 or more words in modified_text
-            if (POST_TO_TWITTER is True or POST_TO_TWITTER == "True") and len(modified_text.strip().split()) >= 5:
-                post_deal_to_twitter(modified_text, imageUrl)
+
+            # ✅ Post to Twitter only if there are 5+ words AND 1 hour has passed
+            if (
+                (POST_TO_TWITTER is True or POST_TO_TWITTER == "True") and
+                len(modified_text.strip().split()) >= 5
+            ):
+                now = datetime.now()
+                last_time = last_tweet_time.get("timestamp")
+
+                if last_time is None or (now - last_time) >= timedelta(hours=1):
+                    post_deal_to_twitter(modified_text, imageUrl)
+                    last_tweet_time["timestamp"] = now
+                else:
+                    print("⏳ Skipping Twitter post — 1 hour not yet passed since last post.")
 
         except requests.RequestException as e:
             print("⚠️ Error triggering cron/v2:", e)
 
     executor.submit(run)
+
 
 
 def post_deal_to_twitter(text, imageUrl):
