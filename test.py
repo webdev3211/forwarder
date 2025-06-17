@@ -362,7 +362,7 @@ def checkIfUnwantedText(text):
             return True
 
         if STOP_FLIPKART_LINKS == True or STOP_FLIPKART_LINKS == 'True':
-            if "fkrt.it" or "fkrt.to" or "fkrt.co" or "fkrt.cc" in text_lower:
+            if "flipkart" or "fkrt.it" or "fkrt.to" or "fkrt.co" or "fkrt.cc" in text_lower:
                 print("❌ Flipkart links ban for now :", text)
                 return True
 
