@@ -718,7 +718,7 @@ def storeFirstLinkAndCheckIfDuplicate(text):
 
         # Fast check
         if key in unshortened_link_cache:
-            print(f"🛑 Exact duplicate: {key}")
+            print(f"🛑 Exact duplicates: {key}")
             return True
 
         # Fuzzy check
@@ -726,7 +726,7 @@ def storeFirstLinkAndCheckIfDuplicate(text):
             if not existing_key or existing_key == key:
                 continue
             if key in existing_key or existing_key in key:
-                print(f"🛑 Fuzzy duplicate: {key} ~ matches {existing_key}")
+                print(f"🛑 Fuzzy duplicates: {key} ~ matches {existing_key}")
                 return True
 
         # Store new
