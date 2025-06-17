@@ -49,6 +49,8 @@ TWITTER_API_SECRET = os.getenv("TWITTER_API_SECRET")
 TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN")
 TWITTER_ACCESS_SECRET = os.getenv("TWITTER_ACCESS_SECRET")
 POST_TO_TWITTER = os.getenv("POST_TO_TWITTER")
+STOP_FLIPKART_LINKS = os.getenv("STOP_FLIPKART_LINKS")
+
 
 
 
@@ -358,6 +360,11 @@ def checkIfUnwantedText(text):
         if "https://t.me" in text_lower or "t.me/" in text_lower:
             print("❌ Telegram link found, skipping message:", text)
             return True
+
+        if STOP_FLIPKART_LINKS == True or STOP_FLIPKART_LINKS == 'True':
+            if "fkrt.it" or "fkrt.to" or "fkrt.co" or "fkrt.cc" in text_lower:
+                print("❌ Flipkart links ban for now :", text)
+                return True
 
         if text_lower == "back" or text_lower == "loot" or text_lower == "grab":
             print("❌ Only back/loot/grab msg no link:", text)
