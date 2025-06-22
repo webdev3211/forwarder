@@ -44,13 +44,9 @@ LINK_KEY_LENGTHS = json.loads(os.getenv("LINK_KEY_LENGTHS", "{}"))
 UPDATE_WAIT_TIME = int(os.getenv("UPDATE_WAIT_TIME"))
 DELETE_CHANNEL_ID = int(os.getenv("DELETE_CHANNEL_ID"))
 DELETE_CHANNEL_URL = os.getenv("DELETE_CHANNEL_URL")
-TWITTER_API_KEY = os.getenv("TWITTER_API_KEY")
-TWITTER_API_SECRET = os.getenv("TWITTER_API_SECRET")
-TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN")
-TWITTER_ACCESS_SECRET = os.getenv("TWITTER_ACCESS_SECRET")
 POST_TO_TWITTER = os.getenv("POST_TO_TWITTER")
 STOP_FLIPKART_LINKS = os.getenv("STOP_FLIPKART_LINKS")
-
+TWITTER_MINS_TO_WAIT = int(os.getenv("TWITTER_MINS_TO_WAIT"))
 
 
 
@@ -66,27 +62,6 @@ last_tweet_time = {"timestamp": None}
 
 executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
 executor_deletes = ThreadPoolExecutor(max_workers=5)    # For delayed deletes
-
-
-#Twitter
-TWITTER_API_KEY = 'wqjS4yWKLY1HtWMdV18tUA9uc'
-TWITTER_API_SECRET = 'gBwYVDV2TzajrWjdxscqZc61A5ZEN23lpg7RJxjJFDw3Ik74MK'
-TWITTER_ACCESS_TOKEN = '1250438881087877122-TOdbZmHurqVqZnMdvP9ip8f3ntC9fe'
-TWITTER_ACCESS_SECRET = 'Vn5aBaQoXbRsh6KLbya1fmp3Sd5bt7zDHktTTeuhqKvM9'
-
-
-# 🌐 Setup auth only once
-auth = tweepy.OAuth1UserHandler(TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET)
-api = tweepy.API(auth)
-
-twitter_client = tweepy.Client(
-    consumer_key=TWITTER_API_KEY,
-    consumer_secret=TWITTER_API_SECRET,
-    access_token=TWITTER_ACCESS_TOKEN,
-    access_token_secret=TWITTER_ACCESS_SECRET
-)
-
-print("twitter client: ", twitter_client)
 
 
 
@@ -117,11 +92,11 @@ def trigger_cron_v2(deal_id=None, tg_msg_id="", modified_text="", imageUrl=None)
                 now = datetime.now()
                 last_time = last_tweet_time.get("timestamp")
 
-                if last_time is None or (now - last_time) >= timedelta(hours=1):
+                if last_time is None or (now - last_time) >= timedelta(minutes=TWITTER_MINS_TO_WAIT):
                     post_deal_to_twitter(modified_text, imageUrl)
                     last_tweet_time["timestamp"] = now
                 else:
-                    print("⏳ Skipping Twitter post — 1 hour not yet passed since last post.")
+                    print(f"⏳ Skipping Twitter post — {TWITTER_MINS_TO_WAIT} mins not yet passed since last post.")
 
         except requests.RequestException as e:
             print("⚠️ Error triggering cron/v2:", e)
@@ -151,49 +126,34 @@ def post_deal_to_twitter(text, imageUrl):
                 tweet_text = text
 
             image_url = imageUrl  # Set to None or "" for text-only tweet
-            tweet_with_optional_image(tweet_text, image_url)
+            save_to_tweet_db(tweet_text, image_url)
             
         except Exception as e:
             print("❌ Error from fetch-enhanced-deal API:", e)
 
 
-def tweet_with_optional_image(text, image_url=None):
+
+def save_to_tweet_db(text, image_url = None):
+    url = BASE_URL + "/tweetapi"
+
+    payload = {
+        "deal": text,
+        "imgurl": image_url,
+        "action": "NO_ACTION"
+    }
+
+    headers = {'Content-Type': 'application/json'}
+
     try:
-        media_id = None
-        image_path = None
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
 
-        # 🖼️ If image URL provided, download and upload
-        if image_url:
-            response = requests.get(image_url)
-            if response.status_code == 200:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
-                    tmp_file.write(response.content)
-                    image_path = tmp_file.name
-                try:
-                    media = api.media_upload(image_path)
-                    media_id = media.media_id
-                except Exception as e:
-                    print("❌ Error uploading media:", e)
-                finally:
-                    # Clean up the image file after upload
-                    if image_path and os.path.exists(image_path):
-                        try:
-                            os.remove(image_path)
-                            print("🧹 Temp image deleted.")
-                        except Exception as cleanup_err:
-                            print("⚠️ Failed to delete temp file:", cleanup_err)
-            else:
-                print("⚠️ Could not download image, posting text-only.")
-
-        # 📝 Post tweet
-        if media_id:
-            response = twitter_client.create_tweet(text=text, media_ids=[media_id])
-        else:
-            response = twitter_client.create_tweet(text=text)
-
-        print("✅ Tweet posted! ID:", response.data['id'])
+        response_data = response.json()
+        deal_id = response_data.get("data", {}).get("_id", None)
+        print("✅ Saved to Tweet DB with _id:", deal_id)
     except Exception as e:
-        print("❌ Error posting tweet:", e)
+        print("❌ Error saving to Tweet DB:", e)
+        return None
 
 
 
@@ -914,9 +874,12 @@ async def main():
             text = replace_text_links_with_urls(edited_msg)
             is_deal_over = checkIfDealIsOver(text)
 
-            if is_deal_over or checkIfUnwantedText(text):
-                print("❌ Edited Msg contain unwanted things so dropping: " + text)
-                return
+            if is_deal_over:
+                print("Deal is over so delete ❌")
+            else:
+                if checkIfUnwantedText(text):
+                    print("❌ Edited Msg contain unwanted things so dropping: " + text)
+                    return
             
             if data_pushed_to_db.get(edited_msg.id):
                 do_update_operations(edited_msg, text, is_deal_over)
