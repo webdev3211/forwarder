@@ -126,7 +126,7 @@ def post_deal_to_twitter(text, imageUrl):
                 tweet_text = text
 
             image_url = imageUrl  # Set to None or "" for text-only tweet
-            save_to_tweet_db(tweet_text, image_url)
+            # save_to_tweet_db(tweet_text, image_url)
             
         except Exception as e:
             print("❌ Error from fetch-enhanced-deal API:", e)
