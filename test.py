@@ -13,7 +13,6 @@ import os
 import time
 import traceback
 import tempfile
-import tweepy
 
 from urllib.parse import urlparse, parse_qs, unquote
 from collections import deque
@@ -47,7 +46,9 @@ DELETE_CHANNEL_URL = os.getenv("DELETE_CHANNEL_URL")
 POST_TO_TWITTER = os.getenv("POST_TO_TWITTER")
 STOP_FLIPKART_LINKS = os.getenv("STOP_FLIPKART_LINKS")
 TWITTER_MINS_TO_WAIT = int(os.getenv("TWITTER_MINS_TO_WAIT"))
-
+TWITTER_ACCOUNTS = os.getenv("TWITTER_ACCOUNTS").split(",")
+TG_WAIT = os.getenv("TG_WAIT")
+WAIT_BEFORE_NEXT_DEAL = int(os.getenv("WAIT_BEFORE_NEXT_DEAL"))
 
 
 LOCAL_TEST_BYPASS = False
@@ -58,6 +59,9 @@ deleted_ids_memory = {}
 unshortened_link_cache = {}
 data_pushed_to_db = {}
 last_tweet_time = {"timestamp": None}
+last_deal_time = {"timestamp": None}
+SUCCESS = "success"
+FAILED = "failed"
 
 
 executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
@@ -126,7 +130,7 @@ def post_deal_to_twitter(text, imageUrl):
                 tweet_text = text
 
             image_url = imageUrl  # Set to None or "" for text-only tweet
-            # save_to_tweet_db(tweet_text, image_url)
+            save_to_tweet_db(tweet_text, image_url)
             
         except Exception as e:
             print("❌ Error from fetch-enhanced-deal API:", e)
@@ -151,10 +155,304 @@ def save_to_tweet_db(text, image_url = None):
         response_data = response.json()
         deal_id = response_data.get("data", {}).get("_id", None)
         print("✅ Saved to Tweet DB with _id:", deal_id)
+        process_entries()
     except Exception as e:
         print("❌ Error saving to Tweet DB:", e)
         return None
 
+
+ACCOUNTS = TWITTER_ACCOUNTS
+ACCOUNT_TO_URL_MAP = {
+    "EmhDeals24": "https://frcp.onrender.com",
+    "jyotbaheti96": "https://offerzone-u7ik.onrender.com",
+    "PuspaBaheti": "https://dealzwala.up.railway.app",
+    # "C": "https://c.com",
+    # "D": "https://d.com",
+    # "E": "https://e.com"
+}
+
+
+def update_entry_action(deal_id, action, tweet_id=None, tweeted_by=None, tweet_action_taken_by= None, is_completed = False):
+    payload = {"action": action}
+    if tweet_id:
+        payload["tweet_id"] = tweet_id
+    if tweeted_by:
+        payload["tweeted_by"] = tweeted_by
+    if tweet_action_taken_by:
+        payload["tweet_action_taken_by"] = tweet_action_taken_by
+    if is_completed:
+        payload["is_completed"] = is_completed
+    try:
+        response = requests.put(f"{BASE_URL}/tweetapi/{deal_id}", json=payload)
+    except Exception as e:
+        print(f"[ERROR] Failed to update action: {e}")
+
+
+def delete_old_entries():
+    url = BASE_URL + "/tweetapi" + "/cleanup"
+    try:
+        res = requests.delete(url)
+        print("🗑️ Deleted old entries:", res.status_code)
+    except Exception as e:
+        print("❌ Error deleting old entries:", e)
+
+def delete_entry(entry_id):
+    try:
+        url = f"{BASE_URL}/tweetapi/{entry_id}"
+        response = requests.delete(url)
+        print(f"🗑️ Deleted entry {entry_id}")
+    except Exception as e:
+        print(f"❌ Error deleting entry {entry_id}:", e)
+
+
+def fetch_entries():
+    try:
+        response = requests.get(BASE_URL + "/tweetapi")
+        response.raise_for_status()
+        data = response.json().get("data", [])
+        return data  # already sorted from backend
+    except Exception as e:
+        print("❌ Error fetching entries:", e)
+        return []
+
+
+def call_generate_quote_or_comment(deal, action):
+    url = BASE_URL + "/tweetapi" + "/generate-quote-or-comment"
+    try:
+        res = requests.post(url, json={"deal": deal, "action": action})
+        res.raise_for_status()
+        return res.json().get("content", "")
+    except Exception as e:
+        print("❌ Error generating quote/comment:", e)
+        return deal
+
+
+def try_action_with_multiple_accounts(action_fn, tweet_id, deal_text=None, username=None, post_owner_username=None,deal_id=None):
+    attempted_accounts = set()
+    if action_fn != "tweet":
+        attempted_accounts.add(post_owner_username)
+    for _ in range(3):
+        available_accounts = [a for a in ACCOUNTS if a not in attempted_accounts]
+        if not available_accounts:
+            break
+        account = random.choice(available_accounts)
+        base_url = ACCOUNT_TO_URL_MAP[account]
+        attempted_accounts.add(account)
+
+        if action_fn == "tweet":
+            tweet_id_result, success = tweet_function_retry(tweet_id, deal_text, account, base_url)
+            if success:
+                return SUCCESS, tweet_id_result, account
+        elif action_fn == "retweet":
+            if retweet_function(tweet_id, username, base_url) == SUCCESS:
+                return SUCCESS, None, account
+            else:
+                print(f"[RETRY] {action_fn.upper()} attempt failed by {account}")
+        elif action_fn == "like":
+            if like_function(tweet_id, username, base_url) == SUCCESS:
+                return SUCCESS, None, account
+            else:
+                print(f"[RETRY] {action_fn.upper()} attempt failed by {account}")
+        elif action_fn == "quote":
+            content = call_generate_quote_or_comment(deal_text, "QUOTE")
+            if quote_function(tweet_id, content, username, base_url) == SUCCESS:
+                return SUCCESS, None, account
+            else:
+                print(f"[RETRY] {action_fn.upper()} attempt failed by {account}")
+        elif action_fn == "comment":
+            content = call_generate_quote_or_comment(deal_text, "COMMENT")
+            if comment_function(tweet_id, content, base_url, post_owner_username) == SUCCESS:
+                return SUCCESS, None, account
+            else:
+                print(f"[RETRY] {action_fn.upper()} attempt failed by {account}")
+
+    # After 3 failed attempts
+    if deal_id:
+        delete_entry(deal_id)
+    return FAILED, None, None
+
+
+
+def tweet_function_retry(deal_id, deal_text, account, base_url):
+    payload = {"text": deal_text}
+    tweet_id = None
+    try:
+        res = requests.post(f"{base_url}/autotweet/tweet", json=payload, timeout=15)
+        if res.ok and res.json().get("success"):
+            tweet_id = res.json()["id"]
+        else:
+            raise Exception("Standard tweet failed")
+    except Exception:
+        try:
+            res = requests.post(f"{base_url}/autotweet/browser-tweet", json=payload, timeout=15)
+            if res.ok and res.json().get("success"):
+                tweet_id = res.json()["id"]
+            else:
+                raise Exception("Both tweet apis failed")
+        except Exception as e:
+            print(f"[ERROR] Tweeting failed for {deal_id}: {e}")
+            return None, False
+
+    return tweet_id, True if tweet_id else False
+
+
+def retweet_function(tweet_id, username, base_url):
+    payload = {"tweet_id": tweet_id, "post_owner_username": username}
+    try:
+        res = requests.post(f"{base_url}/autotweet/retweet", json=payload)
+        if res.ok and res.json().get("success"):
+            return SUCCESS
+        else:
+            raise Exception("Standard retweet failed")
+    except Exception as e:
+        try:
+            res = requests.post(f"{base_url}/autotweet/browser-retweet", json=payload)
+            if res.ok and res.json().get("success"):
+                return SUCCESS
+            else:
+                raise Exception("Both retweet apis failed")
+        except Exception as e:
+            return FAILED
+
+    return FAILED
+
+
+def like_function(tweet_id, username, base_url):
+    payload = {"tweet_id": tweet_id, "post_owner_username": username}
+    try:
+        res = requests.post(f"{base_url}/autotweet/like", json=payload)
+        if res.ok and res.json().get("success"):
+            return SUCCESS
+        else:
+            raise Exception("Standard retweet failed")
+    except Exception as e:
+        try:
+            res = requests.post(f"{base_url}/autotweet/browser-like", json=payload)
+            if res.ok and res.json().get("success"):
+                return SUCCESS
+            else:
+                raise Exception("Both retweet apis failed")
+        except Exception as e:
+            return FAILED
+
+    return FAILED
+
+
+def quote_function(tweet_id, text, username, base_url):
+    payload = {
+        "text": text, 
+        "attachment_url": f"https://x.com/{username}/status/{tweet_id}", 
+        "tweet_id": tweet_id
+    }
+    try:
+        res = requests.post(f"{base_url}/autotweet/quote", json=payload)
+        if res.ok and res.json().get("success"):
+            # print(res.json()["id"])
+            return SUCCESS
+        else:
+            raise Exception("Standard quote failed")
+    except Exception as e:
+        try:
+            res = requests.post(f"{base_url}/autotweet/browser-quote", json=payload)
+            if res.ok and res.json().get("success"):
+                # print(res.json()["twitter_response"]["data"]["create_tweet"]["tweet_results"]["result"]["rest_id"])
+                return SUCCESS
+            else:
+                raise Exception("Both type of quote apis failed")
+        except Exception as e:
+            return FAILED
+
+    return FAILED
+
+
+def comment_function(tweet_id, text, base_url, post_owner_username):
+    payload = {"tweet_id": tweet_id, "text": text, "post_owner_username": post_owner_username}
+    try:
+        res = requests.post(f"{base_url}/autotweet/comment", json=payload)
+        if res.ok and res.json().get("success"):
+            # print(res.json()["id"])
+            return SUCCESS
+        else:
+            raise Exception("Standard comment failed")
+    except Exception as e:
+        try:
+            res = requests.post(f"{base_url}/autotweet/browser-comment", json=payload)
+            if res.ok and res.json().get("success"):
+                # print(res.json()["id"])
+                return SUCCESS
+            else:
+                raise Exception("Both type of comment api failed")
+        except:
+            return FAILED
+
+    return FAILED
+
+
+def mark_as_processed(deal_id, action, tweet_id, tweeted_by, tweet_action_taken_by, is_completed):
+    try:
+        update_entry_action(deal_id, action, tweet_id, tweeted_by, tweet_action_taken_by, is_completed)
+    except Exception as e:
+        print(f"[ERROR] Failed to mark as processed {deal_id}: {e}")
+
+def process_entries():
+    try:
+        delete_old_entries()
+
+        entries = fetch_entries()
+        if not entries: 
+            return
+        
+        entry = entries[0]
+        if entry["action"] == "NO_ACTION":
+            deal_id = entry["_id"]
+            update_entry_action(deal_id, "PROCESSING")
+            result, tweet_id, account = try_action_with_multiple_accounts(
+                "tweet",
+                entry["_id"],
+                deal_text=entry["deal"],
+                tweeted_by=None,
+                tweet_action_taken_by=None,
+                deal_id=deal_id
+            )
+
+            if result == SUCCESS:
+                update_entry_action(deal_id, "TWEETED", tweet_id=tweet_id, tweeted_by=account)
+
+                # 🔀 Randomly decide if this entry should be discarded after tweeting
+                if random.randint(1, 10) < 5:
+                    print(f"🔁 Skipping engagement for {deal_id}, deleting...")
+                    delete_entry(deal_id)
+                    return  # Skip further actions and waiting
+
+                # 💤 Wait before further action
+                time.sleep(random.randint(180, 800))
+            else:
+                return  # already deleted inside
+
+        entries = fetch_entries()
+        if not entries: 
+            return
+        
+        entry = entries[0]
+        deal_id = entry["_id"]
+        if entry["action"] == "TWEETED":
+            next_action = random.choice(["QUOTE", "RETWEET", "COMMENT", "LIKE"])
+            action_type = next_action.lower()
+            tweeted_by = entry["tweeted_by"]
+            tweet_id = entry["tweet_id"]
+            deal_text = entry["deal"]
+            username = tweeted_by
+
+            result, _, action_account = try_action_with_multiple_accounts(action_type, tweet_id, deal_text=deal_text, username=username, post_owner_username=username, deal_id = deal_id)
+            if result == SUCCESS:
+                mark_as_processed(deal_id, next_action, tweet_id, tweeted_by, action_account, True)
+
+            print(f"Tweet process completed with deal_id={deal_id}, tweeted_by={tweeted_by}, next_action=${next_action}, action_account={action_account}")
+        else:
+            print("After wait current entry action is not 'TWEETED' so do not do anything")
+            delete_entry(deal_id)
+    except Exception as e:
+        print("Error at process_entries: ", e)
 
 
 
@@ -833,6 +1131,18 @@ async def main():
                 if has_duplicate:
                     print("⚠️ Duplicate message sent by diff sources, skipping..." + text)
                     return
+
+
+            if TG_WAIT == True or TG_WAIT == "True" or TG_WAIT is True:
+                now = datetime.now()
+                last_time = last_deal_time.get("timestamp")
+
+                if last_time is None or (now - last_time) >= timedelta(minutes=WAIT_BEFORE_NEXT_DEAL):
+                    last_deal_time["timestamp"] = now
+                else:
+                    print(f"⏳ Skipping sending deal — {WAIT_BEFORE_NEXT_DEAL} mins not yet passed since last post.")
+                    return
+
 
             image_url = await upload_photo_get_url(msg)
 
