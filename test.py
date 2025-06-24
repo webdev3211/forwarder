@@ -62,6 +62,22 @@ last_tweet_time = {"timestamp": None}
 last_deal_time = {"timestamp": None}
 SUCCESS = "success"
 FAILED = "failed"
+ACCOUNTS = TWITTER_ACCOUNTS
+ACCOUNT_TO_URL_MAP = {
+    "EmhDeals24": "https://frcp.onrender.com",
+    "jyotbaheti96": "https://offerzone-u7ik.onrender.com",
+    "PuspaBaheti": "https://dealzwala.up.railway.app",
+    # "C": "https://c.com",
+    # "D": "https://d.com",
+    # "E": "https://e.com"
+}
+
+ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP = {
+    "EmhDeals24": True,
+    "jyotbaheti96": True,
+    "PuspaBaheti": True,
+}
+
 
 
 executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
@@ -161,15 +177,6 @@ def save_to_tweet_db(text, image_url = None):
         return None
 
 
-ACCOUNTS = TWITTER_ACCOUNTS
-ACCOUNT_TO_URL_MAP = {
-    "EmhDeals24": "https://frcp.onrender.com",
-    "jyotbaheti96": "https://offerzone-u7ik.onrender.com",
-    "PuspaBaheti": "https://dealzwala.up.railway.app",
-    # "C": "https://c.com",
-    # "D": "https://d.com",
-    # "E": "https://e.com"
-}
 
 
 def update_entry_action(deal_id, action, tweet_id=None, tweeted_by=None, tweet_action_taken_by= None, is_completed = False):
@@ -283,14 +290,17 @@ def tweet_function_retry(deal_id, deal_text, account, base_url):
         else:
             raise Exception("Standard tweet failed")
     except Exception:
-        try:
-            res = requests.post(f"{base_url}/autotweet/browser-tweet", json=payload, timeout=15)
-            if res.ok and res.json().get("success"):
-                tweet_id = res.json()["id"]
-            else:
-                raise Exception("Both tweet apis failed")
-        except Exception as e:
-            print(f"[ERROR] Tweeting failed for {deal_id}: {e}")
+        if ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP.get(account, False):
+            try:
+                res = requests.post(f"{base_url}/autotweet/browser-tweet", json=payload, timeout=15)
+                if res.ok and res.json().get("success"):
+                    tweet_id = res.json()["id"]
+                else:
+                    raise Exception("Both tweet apis failed")
+            except Exception as e:
+                print(f"[ERROR] Tweeting failed for {deal_id}: {e}")
+                return None, False
+        else:
             return None, False
 
     return tweet_id, True if tweet_id else False
@@ -305,13 +315,16 @@ def retweet_function(tweet_id, username, base_url):
         else:
             raise Exception("Standard retweet failed")
     except Exception as e:
-        try:
-            res = requests.post(f"{base_url}/autotweet/browser-retweet", json=payload)
-            if res.ok and res.json().get("success"):
-                return SUCCESS
-            else:
-                raise Exception("Both retweet apis failed")
-        except Exception as e:
+        if ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP.get(account, False):
+            try:
+                res = requests.post(f"{base_url}/autotweet/browser-retweet", json=payload)
+                if res.ok and res.json().get("success"):
+                    return SUCCESS
+                else:
+                    raise Exception("Both retweet apis failed")
+            except Exception as e:
+                return FAILED
+        else:
             return FAILED
 
     return FAILED
@@ -326,13 +339,16 @@ def like_function(tweet_id, username, base_url):
         else:
             raise Exception("Standard retweet failed")
     except Exception as e:
-        try:
-            res = requests.post(f"{base_url}/autotweet/browser-like", json=payload)
-            if res.ok and res.json().get("success"):
-                return SUCCESS
-            else:
-                raise Exception("Both retweet apis failed")
-        except Exception as e:
+        if ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP.get(account, False):
+            try:
+                res = requests.post(f"{base_url}/autotweet/browser-like", json=payload)
+                if res.ok and res.json().get("success"):
+                    return SUCCESS
+                else:
+                    raise Exception("Both retweet apis failed")
+            except Exception as e:
+                return FAILED
+        else:
             return FAILED
 
     return FAILED
@@ -352,14 +368,17 @@ def quote_function(tweet_id, text, username, base_url):
         else:
             raise Exception("Standard quote failed")
     except Exception as e:
-        try:
-            res = requests.post(f"{base_url}/autotweet/browser-quote", json=payload)
-            if res.ok and res.json().get("success"):
-                # print(res.json()["twitter_response"]["data"]["create_tweet"]["tweet_results"]["result"]["rest_id"])
-                return SUCCESS
-            else:
-                raise Exception("Both type of quote apis failed")
-        except Exception as e:
+        if ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP.get(account, False):
+            try:
+                res = requests.post(f"{base_url}/autotweet/browser-quote", json=payload)
+                if res.ok and res.json().get("success"):
+                    # print(res.json()["twitter_response"]["data"]["create_tweet"]["tweet_results"]["result"]["rest_id"])
+                    return SUCCESS
+                else:
+                    raise Exception("Both type of quote apis failed")
+            except Exception as e:
+                return FAILED
+        else:
             return FAILED
 
     return FAILED
@@ -375,14 +394,17 @@ def comment_function(tweet_id, text, base_url, post_owner_username):
         else:
             raise Exception("Standard comment failed")
     except Exception as e:
-        try:
-            res = requests.post(f"{base_url}/autotweet/browser-comment", json=payload)
-            if res.ok and res.json().get("success"):
-                # print(res.json()["id"])
-                return SUCCESS
-            else:
-                raise Exception("Both type of comment api failed")
-        except:
+        if ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP.get(account, False):
+            try:
+                res = requests.post(f"{base_url}/autotweet/browser-comment", json=payload)
+                if res.ok and res.json().get("success"):
+                    # print(res.json()["id"])
+                    return SUCCESS
+                else:
+                    raise Exception("Both type of comment api failed")
+            except:
+                return FAILED
+        else:
             return FAILED
 
     return FAILED
@@ -1185,7 +1207,8 @@ async def main():
             is_deal_over = checkIfDealIsOver(text)
 
             if is_deal_over:
-                print("Deal is over so delete ❌")
+                text = text + " OVER"
+                print("Deal is over or unwanted keywords added so delete ❌")
             else:
                 if checkIfUnwantedText(text):
                     print("❌ Edited Msg contain unwanted things so dropping: " + text)
