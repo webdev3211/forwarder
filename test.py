@@ -1206,8 +1206,10 @@ async def main():
             text = replace_text_links_with_urls(edited_msg)
             is_deal_over = checkIfDealIsOver(text)
 
-            if is_deal_over:
-                text = text + " OVER"
+            if is_deal_over == True:
+                if checkIfUnwantedText(text):
+                    print("❌ Edited Msg contain unwanted things so dropping: " + text)
+                    text = text + " OVER"
                 print("Deal is over or unwanted keywords added so delete ❌")
             else:
                 if checkIfUnwantedText(text):
