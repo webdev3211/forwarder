@@ -49,6 +49,8 @@ TWITTER_MINS_TO_WAIT = int(os.getenv("TWITTER_MINS_TO_WAIT"))
 TWITTER_ACCOUNTS = os.getenv("TWITTER_ACCOUNTS").split(",")
 TG_WAIT = os.getenv("TG_WAIT")
 WAIT_BEFORE_NEXT_DEAL = int(os.getenv("WAIT_BEFORE_NEXT_DEAL"))
+TWITTER_REACTIONS = os.getenv("TWITTER_REACTIONS")
+NO_OF_RETRIES = int(os.getenv("NO_OF_RETRIES"))
 
 
 LOCAL_TEST_BYPASS = False
@@ -67,6 +69,8 @@ ACCOUNT_TO_URL_MAP = {
     "EmhDeals24": "https://frcp.onrender.com",
     "jyotbaheti96": "https://offerzone-u7ik.onrender.com",
     "PuspaBaheti": "https://dealzwala.up.railway.app",
+    "OfferZoneDaily": "https://sable-sand-quiver.glitch.me",
+    "DealsValley": "https://cloudflaregithub.webdev3211.workers.dev"
     # "C": "https://c.com",
     # "D": "https://d.com",
     # "E": "https://e.com"
@@ -238,7 +242,8 @@ def try_action_with_multiple_accounts(action_fn, tweet_id, deal_text=None, usern
     attempted_accounts = set()
     if action_fn != "tweet":
         attempted_accounts.add(post_owner_username)
-    for _ in range(3):
+    
+    for _ in range(NO_OF_RETRIES):
         available_accounts = [a for a in ACCOUNTS if a not in attempted_accounts]
         if not available_accounts:
             break
@@ -440,14 +445,19 @@ def process_entries():
             if result == SUCCESS:
                 update_entry_action(deal_id, "TWEETED", tweet_id=tweet_id, tweeted_by=account)
 
-                # 🔀 Randomly decide if this entry should be discarded after tweeting
-                if random.randint(1, 10) < 5:
-                    print(f"🔁 Skipping engagement for {deal_id}, deleting...")
-                    delete_entry(deal_id)
-                    return  # Skip further actions and waiting
+                if TWITTER_REACTIONS == True or TWITTER_REACTIONS == 'True':
+                    # 🔀 Randomly decide if this entry should be discarded after tweeting
+                    if random.randint(1, 10) < 5:
+                        print(f"🔁 Skipping engagement for {deal_id}, deleting...")
+                        delete_entry(deal_id)
+                        return  # Skip further actions and waiting
 
-                # 💤 Wait before further action
-                time.sleep(random.randint(180, 800))
+                    # 💤 Wait before further action
+                    time.sleep(random.randint(180, 800))
+                else:
+                    print("🔁 TWITTER REACTIONS OFF")
+                    delete_entry(deal_id)
+                    return
             else:
                 return  # already deleted inside
 
@@ -740,7 +750,9 @@ def get_chat_and_msg_ids_from_db(msg_id):
 
         return None
     except requests.exceptions.RequestException as e:
-        print("❌ Error fetching chatandmsgids:", e)
+        error_text = str(e)
+        if "404 Client Error: Not Found for url" not in error_text:
+            print("❌ Error fetching chatandmsgids:", error_text)
         return None
     except ValueError:
         print("❌ Response is not valid JSON.")
