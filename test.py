@@ -13,6 +13,7 @@ import os
 import time
 import traceback
 import tempfile
+import random
 
 from urllib.parse import urlparse, parse_qs, unquote
 from collections import deque
@@ -920,7 +921,6 @@ def handle_deletes_after_delay(deleted_ids):
         print("⏰ Awake! Now calling delete.")
         handle_delete_instant(deleted_ids)
     except Exception as e:
-        import traceback
         print("❌ Exception in handle_deletes_after_delay:", traceback.format_exc())
 
 
