@@ -51,7 +51,7 @@ TG_WAIT = os.getenv("TG_WAIT")
 WAIT_BEFORE_NEXT_DEAL = int(os.getenv("WAIT_BEFORE_NEXT_DEAL"))
 TWITTER_REACTIONS = os.getenv("TWITTER_REACTIONS")
 NO_OF_RETRIES = int(os.getenv("NO_OF_RETRIES"))
-TG_BOT_TOKEN = int(os.getenv("TG_BOT_TOKEN"))
+TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 TG_TEST_CHANNEL_ID = os.getenv("TG_TEST_CHANNEL_ID")
 
 
