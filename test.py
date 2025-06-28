@@ -51,6 +51,10 @@ TG_WAIT = os.getenv("TG_WAIT")
 WAIT_BEFORE_NEXT_DEAL = int(os.getenv("WAIT_BEFORE_NEXT_DEAL"))
 TWITTER_REACTIONS = os.getenv("TWITTER_REACTIONS")
 NO_OF_RETRIES = int(os.getenv("NO_OF_RETRIES"))
+TG_BOT_TOKEN = int(os.getenv("TG_BOT_TOKEN"))
+TG_TEST_CHANNEL_ID = os.getenv("TG_TEST_CHANNEL_ID")
+
+
 
 
 LOCAL_TEST_BYPASS = False
@@ -70,7 +74,14 @@ ACCOUNT_TO_URL_MAP = {
     "jyotbaheti96": "https://offerzone-u7ik.onrender.com",
     "PuspaBaheti": "https://dealzwala.up.railway.app",
     "OfferZoneDaily": "https://sable-sand-quiver.glitch.me",
-    "DealsValley": "https://cloudflaregithub.webdev3211.workers.dev"
+    "DealsJunction24": "https://dealsjunction.webdev3211.workers.dev",
+    "TheDealsValley": "https://offerbox.webdev3211.workers.dev"
+
+    # no creds added
+    # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
+    # "SastaDealsIndia": "https://sastadealshub.netlify.app"
+    # "CouponHub": "https://couponhub-delta.vercel.app/api"
+    # "LootDealsWorld": "https://fastestlootdeals.kiyagujral4128.workers.dev"
     # "C": "https://c.com",
     # "D": "https://d.com",
     # "E": "https://e.com"
@@ -175,6 +186,7 @@ def save_to_tweet_db(text, image_url = None):
         response_data = response.json()
         deal_id = response_data.get("data", {}).get("_id", None)
         print("✅ Saved to Tweet DB with _id:", deal_id)
+        check_all_twitter_apis_server_health()
         process_entries()
     except Exception as e:
         print("❌ Error saving to Tweet DB:", e)
@@ -241,7 +253,8 @@ def call_generate_quote_or_comment(deal, action):
 def try_action_with_multiple_accounts(action_fn, tweet_id, deal_text=None, username=None, post_owner_username=None,deal_id=None):
     attempted_accounts = set()
     if action_fn != "tweet":
-        attempted_accounts.add(post_owner_username)
+        if post_owner_username is not None:
+            attempted_accounts.add(post_owner_username)
     
     for _ in range(NO_OF_RETRIES):
         available_accounts = [a for a in ACCOUNTS if a not in attempted_accounts]
@@ -437,13 +450,14 @@ def process_entries():
                 "tweet",
                 entry["_id"],
                 deal_text=entry["deal"],
-                tweeted_by=None,
-                tweet_action_taken_by=None,
+                username=None, 
+                post_owner_username=None,
                 deal_id=deal_id
             )
 
             if result == SUCCESS:
                 update_entry_action(deal_id, "TWEETED", tweet_id=tweet_id, tweeted_by=account)
+                sendTgMsg(f"Deal with tweet_id = {tweet_id} and tweeted_by = {account}")
 
                 if TWITTER_REACTIONS == True or TWITTER_REACTIONS == 'True':
                     # 🔀 Randomly decide if this entry should be discarded after tweeting
@@ -480,12 +494,25 @@ def process_entries():
                 mark_as_processed(deal_id, next_action, tweet_id, tweeted_by, action_account, True)
 
             print(f"Tweet process completed with deal_id={deal_id}, tweeted_by={tweeted_by}, next_action=${next_action}, action_account={action_account}")
+            sendTgMsg(f"TweetID: {tweet_id} tweeted by: {tweeted_by} and reacted as: {next_action} by ${action_account}")
         else:
             print("After wait current entry action is not 'TWEETED' so do not do anything")
             delete_entry(deal_id)
     except Exception as e:
         print("Error at process_entries: ", e)
 
+
+
+def sendTgMsg(msg):
+    bot_token = TG_BOT_TOKEN
+    chat_id = TG_TEST_CHANNEL_ID
+    telegram_url = f'https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={msg}'
+    try:
+        response = requests.get(telegram_url)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        print("Telegram message sent successfully.")
+    except requests.exceptions.RequestException as e:
+        print("Failed sending TG msg:", e)
 
 
 
@@ -805,6 +832,19 @@ def update_message_in_db(deal_id, modified_text):
     except requests.RequestException as e:
         print(f"❌ Error while updating deal {deal_id}: {e}")
 
+
+
+def check_all_twitter_apis_server_health():
+    for account, base_url in ACCOUNT_TO_URL_MAP.items():
+        url = f"{base_url.rstrip('/')}/healthcheck"
+        try:
+            response = requests.get(url, timeout=50)
+            if response.status_code == 200:
+                print(f"✅ {account} is healthy: {response.text}")
+            else:
+                print(f"⚠️ {account} responded with status {response.status_code}")
+        except requests.RequestException as e:
+            print(f"❌ {account} health check failed: {e}")
 
 
 def checkServerHealth():
