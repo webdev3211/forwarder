@@ -315,6 +315,7 @@ def tweet_function_retry(deal_id, deal_text, account, base_url):
                 if res.ok and res.json().get("success"):
                     tweet_id = res.json()["id"]
                 else:
+                    print(f"Both tweet apis failed by account = {account} and base_url={base_url}")
                     raise Exception("Both tweet apis failed")
             except Exception as e:
                 print(f"[ERROR] Tweeting failed for {deal_id}: {e}")
