@@ -77,7 +77,7 @@ ACCOUNT_TO_URL_MAP = {
     "OfferZoneDaily": "https://sable-sand-quiver.glitch.me",
     "DealsJunction24": "https://dealsjunction.webdev3211.workers.dev",
     "TheDealsValley": "https://offerbox.webdev3211.workers.dev"
-
+    "Yogeshbaheti94": "https://fastestlootdeals.kiyagujral4128.workers.dev"
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
     # "SastaDealsIndia": "https://sastadealshub.netlify.app"
