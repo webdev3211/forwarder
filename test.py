@@ -270,24 +270,24 @@ def try_action_with_multiple_accounts(action_fn, tweet_id, deal_text=None, usern
             if success:
                 return SUCCESS, tweet_id_result, account
         elif action_fn == "retweet":
-            if retweet_function(tweet_id, username, base_url) == SUCCESS:
+            if retweet_function(tweet_id, username, base_url, account) == SUCCESS:
                 return SUCCESS, None, account
             else:
                 print(f"[RETRY] {action_fn.upper()} attempt failed by {account}")
         elif action_fn == "like":
-            if like_function(tweet_id, username, base_url) == SUCCESS:
+            if like_function(tweet_id, username, base_url, account) == SUCCESS:
                 return SUCCESS, None, account
             else:
                 print(f"[RETRY] {action_fn.upper()} attempt failed by {account}")
         elif action_fn == "quote":
             content = call_generate_quote_or_comment(deal_text, "QUOTE")
-            if quote_function(tweet_id, content, username, base_url) == SUCCESS:
+            if quote_function(tweet_id, content, username, base_url, account) == SUCCESS:
                 return SUCCESS, None, account
             else:
                 print(f"[RETRY] {action_fn.upper()} attempt failed by {account}")
         elif action_fn == "comment":
             content = call_generate_quote_or_comment(deal_text, "COMMENT")
-            if comment_function(tweet_id, content, base_url, post_owner_username) == SUCCESS:
+            if comment_function(tweet_id, content, base_url, post_owner_username, account) == SUCCESS:
                 return SUCCESS, None, account
             else:
                 print(f"[RETRY] {action_fn.upper()} attempt failed by {account}")
@@ -326,7 +326,7 @@ def tweet_function_retry(deal_id, deal_text, account, base_url):
     return tweet_id, True if tweet_id else False
 
 
-def retweet_function(tweet_id, username, base_url):
+def retweet_function(tweet_id, username, base_url, account):
     payload = {"tweet_id": tweet_id, "post_owner_username": username}
     try:
         res = requests.post(f"{base_url}/autotweet/retweet", json=payload)
@@ -350,7 +350,7 @@ def retweet_function(tweet_id, username, base_url):
     return FAILED
 
 
-def like_function(tweet_id, username, base_url):
+def like_function(tweet_id, username, base_url, account):
     payload = {"tweet_id": tweet_id, "post_owner_username": username}
     try:
         res = requests.post(f"{base_url}/autotweet/like", json=payload)
@@ -374,7 +374,7 @@ def like_function(tweet_id, username, base_url):
     return FAILED
 
 
-def quote_function(tweet_id, text, username, base_url):
+def quote_function(tweet_id, text, username, base_url, account):
     payload = {
         "text": text, 
         "attachment_url": f"https://x.com/{username}/status/{tweet_id}", 
@@ -404,7 +404,7 @@ def quote_function(tweet_id, text, username, base_url):
     return FAILED
 
 
-def comment_function(tweet_id, text, base_url, post_owner_username):
+def comment_function(tweet_id, text, base_url, post_owner_username, account):
     payload = {"tweet_id": tweet_id, "text": text, "post_owner_username": post_owner_username}
     try:
         res = requests.post(f"{base_url}/autotweet/comment", json=payload)
@@ -469,7 +469,9 @@ def process_entries():
                         return  # Skip further actions and waiting
 
                     # 💤 Wait before further action
-                    time.sleep(random.randint(180, 800))
+                    waittime = random.randint(180, 800)
+                    print(f"Wait {waittime} seconds for reacting to tweet={tweet_id}")
+                    time.sleep(waittime)
                 else:
                     print("🔁 TWITTER REACTIONS OFF")
                     delete_entry(deal_id)
