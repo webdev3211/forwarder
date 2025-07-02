@@ -72,7 +72,7 @@ FAILED = "failed"
 ACCOUNTS = TWITTER_ACCOUNTS
 ACCOUNT_TO_URL_MAP = {
     "EmhDeals24": "https://frcp.onrender.com",
-    "jyotbaheti96": "https://offerzone-u7ik.onrender.com",
+    # "jyotbaheti96": "https://offerzone-u7ik.onrender.com",
     "PuspaBaheti": "https://dealzwala.up.railway.app",
     "OfferZoneDaily": "https://sable-sand-quiver.glitch.me",
     "DealsJunction24": "https://dealsjunction.webdev3211.workers.dev",
@@ -90,7 +90,7 @@ ACCOUNT_TO_URL_MAP = {
 
 ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP = {
     "EmhDeals24": True,
-    "jyotbaheti96": True,
+    # "jyotbaheti96": True,
     "PuspaBaheti": True,
 }
 
@@ -321,6 +321,7 @@ def tweet_function_retry(deal_id, deal_text, account, base_url):
                 print(f"[ERROR] Tweeting failed for {deal_id}: {e}")
                 return None, False
         else:
+            print(f"[ERROR] Tweeting failed for {deal_id}: {e} by account={account} and base_url = {base_url}")
             return None, False
 
     return tweet_id, True if tweet_id else False
@@ -498,7 +499,7 @@ def process_entries():
                 mark_as_processed(deal_id, next_action, tweet_id, tweeted_by, action_account, True)
 
             print(f"Tweet process completed with deal_id={deal_id}, tweeted_by={tweeted_by}, next_action=${next_action}, action_account={action_account}")
-            sendTgMsg(f"TweetID: {tweet_id} tweeted by: {tweeted_by} and reacted as: {next_action} by ${action_account}")
+            sendTgMsg(f"TweetID: {tweet_id} tweeted by: {tweeted_by} and reacted as: {next_action} by {action_account}")
         else:
             print("After wait current entry action is not 'TWEETED' so do not do anything")
             delete_entry(deal_id)
