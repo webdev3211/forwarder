@@ -321,7 +321,7 @@ def tweet_function_retry(deal_id, deal_text, account, base_url):
                 print(f"[ERROR] Tweeting failed for {deal_id}: {e}")
                 return None, False
         else:
-            print(f"[ERROR] Tweeting failed for {deal_id}: {e} by account={account} and base_url = {base_url}")
+            print(f"[ERROR] Tweeting failed for deal_id: {deal_id} by account={account} and base_url = {base_url}")
             return None, False
 
     return tweet_id, True if tweet_id else False
@@ -346,6 +346,7 @@ def retweet_function(tweet_id, username, base_url, account):
             except Exception as e:
                 return FAILED
         else:
+            print(f"[ERROR] Retweet failed for tweet_id={tweet_id} by account={account} and base_url = {base_url}")
             return FAILED
 
     return FAILED
@@ -370,6 +371,7 @@ def like_function(tweet_id, username, base_url, account):
             except Exception as e:
                 return FAILED
         else:
+            print(f"[ERROR] Like failed for tweet_id={tweet_id} by account={account} and base_url = {base_url}")
             return FAILED
 
     return FAILED
@@ -400,6 +402,7 @@ def quote_function(tweet_id, text, username, base_url, account):
             except Exception as e:
                 return FAILED
         else:
+            print(f"[ERROR] Quote failed for tweet_id={tweet_id} by account={account} and base_url = {base_url}")
             return FAILED
 
     return FAILED
