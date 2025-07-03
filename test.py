@@ -71,13 +71,13 @@ SUCCESS = "success"
 FAILED = "failed"
 ACCOUNTS = TWITTER_ACCOUNTS
 ACCOUNT_TO_URL_MAP = {
-    "EmhDeals24": "https://frcp.onrender.com",
-    # "jyotbaheti96": "https://offerzone-u7ik.onrender.com",
-    "PuspaBaheti": "https://dealzwala.up.railway.app",
-    "OfferZoneDaily": "https://sable-sand-quiver.glitch.me",
-    "DealsJunction24": "https://dealsjunction.webdev3211.workers.dev",
-    "TheDealsValley": "https://offerbox.webdev3211.workers.dev",
-    "Yogeshbaheti94": "https://fastestlootdeals.kiyagujral4128.workers.dev"
+    "EmhDeals24": "https://frcp.onrender.com", #Oregon (US West)
+    "jyotbaheti96": "https://offerzone-u7ik.onrender.com", #Oregon (US West) Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1
+    "DealsJunction24": "https://thedealsjunction.webdev3211.workers.dev" # FrankFrut Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36
+    "TheDealsValley": "https://thedealsvalley.webdev3211.workers.dev",
+    "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev"
+    # "PuspaBaheti": "https://dealzwala.up.railway.app",
+    # "OfferZoneDaily": "https://sable-sand-quiver.glitch.me", (account search kro)
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
     # "SastaDealsIndia": "https://sastadealshub.netlify.app"
@@ -91,7 +91,7 @@ ACCOUNT_TO_URL_MAP = {
 ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP = {
     "EmhDeals24": True,
     # "jyotbaheti96": True,
-    "PuspaBaheti": True,
+    # "PuspaBaheti": True,
 }
 
 
