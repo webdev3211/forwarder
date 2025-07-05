@@ -75,12 +75,15 @@ ACCOUNT_TO_URL_MAP = {
     "jyotbaheti96": "https://offerzone-u7ik.onrender.com", #Oregon (US West) Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1
     "DealsJunction24": "https://thedealsjunction.webdev3211.workers.dev", # FrankFrut Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36
     "TheDealsValley": "https://dealsvalleyzone.webdev3211.workers.dev",
-    "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev"
+    "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
+    # "SastaDealsIndia": "https://sastadealshub.netlify.app"  #working fine
+
+
+
     # "PuspaBaheti": "https://dealzwala.up.railway.app",
     # "OfferZoneDaily": "https://sable-sand-quiver.glitch.me", (account search kro)
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
-    # "SastaDealsIndia": "https://sastadealshub.netlify.app"
     # "CouponHub": "https://couponhub-delta.vercel.app/api"
     # "LootDealsWorld": "https://fastestlootdeals.kiyagujral4128.workers.dev"
     # "C": "https://c.com",
@@ -468,10 +471,10 @@ def process_entries():
 
                 if TWITTER_REACTIONS == True or TWITTER_REACTIONS == 'True':
                     # 🔀 Randomly decide if this entry should be discarded after tweeting
-                    if random.randint(1, 10) < 5:
-                        print(f"🔁 Skipping engagement for {deal_id}, deleting...")
-                        delete_entry(deal_id)
-                        return  # Skip further actions and waiting
+                    # if random.randint(1, 10) < 5:
+                    #     print(f"🔁 Skipping engagement for {deal_id}, deleting...")
+                    #     delete_entry(deal_id)
+                    #     return  # Skip further actions and waiting
 
                     # 💤 Wait before further action
                     waittime = random.randint(180, 800)
