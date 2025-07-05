@@ -889,7 +889,7 @@ def pick_item(allowed=None):
 
     chosen = random.choice(candidates)
     scorecard[chosen] += 1
-    print("scorecard: " + scorecard  + "and chosen one is: " + chosen)
+    print("scorecard: " + str(scorecard) + " and chosen one is: " + chosen)
     return chosen
 
 
