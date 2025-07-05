@@ -94,6 +94,7 @@ ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP = {
     # "PuspaBaheti": True,
 }
 
+scorecard = {item: 0 for item in ACCOUNTS}
 
 
 executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
@@ -261,7 +262,7 @@ def try_action_with_multiple_accounts(action_fn, tweet_id, deal_text=None, usern
         available_accounts = [a for a in ACCOUNTS if a not in attempted_accounts]
         if not available_accounts:
             break
-        account = random.choice(available_accounts)
+        account = pick_item(allowed=available_accounts)
         base_url = ACCOUNT_TO_URL_MAP[account]
         attempted_accounts.add(account)
 
@@ -870,6 +871,26 @@ def checkServerHealth():
         return False
 
 
+
+
+def pick_item(allowed=None):
+    # Default: use all accounts
+    if allowed is None:
+        allowed = accounts
+
+    # Filter scorecard based on allowed accounts
+    filtered_scores = {item: score for item, score in scorecard.items() if item in allowed}
+
+    if not filtered_scores:
+        raise ValueError("Allowed list has no valid accounts.")
+
+    min_score = min(filtered_scores.values())
+    candidates = [item for item, score in filtered_scores.items() if score == min_score]
+
+    chosen = random.choice(candidates)
+    scorecard[chosen] += 1
+    print("scorecard: " + scorecard  + "and chosen one is: " + chosen)
+    return chosen
 
 
 def extract_first_url(text):
