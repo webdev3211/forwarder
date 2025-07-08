@@ -199,6 +199,23 @@ def save_to_tweet_db(text, image_url = None):
 
 
 
+def get_deal_by_id(deal_id):
+    url = BASE_URL + f"/tweetapi/{deal_id}"  
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            json_data = response.json()
+            if json_data.get("success"):
+                return json_data["data"]
+            else:
+                return None
+                print("Failed:", json_data.get("message"))
+        else:
+            return None
+            print("HTTP error:", response.status_code)
+    except Exception as e:
+        print("Error occured while getting deal by id:", e)
+        return None
 
 def update_entry_action(deal_id, action, tweet_id=None, tweeted_by=None, tweet_action_taken_by= None, is_completed = False):
     payload = {"action": action}
@@ -453,8 +470,8 @@ def process_entries():
             return
         
         entry = entries[0]
+        deal_id = entry["_id"]
         if entry["action"] == "NO_ACTION":
-            deal_id = entry["_id"]
             update_entry_action(deal_id, "PROCESSING")
             result, tweet_id, account = try_action_with_multiple_accounts(
                 "tweet",
@@ -491,7 +508,11 @@ def process_entries():
         if not entries: 
             return
         
-        entry = entries[0]
+        temp_entry = get_deal_by_id(deal_id)
+        if temp_entry:
+            entry = temp_entry
+        else:
+            entry = entries[0]
         deal_id = entry["_id"]
         if entry["action"] == "TWEETED":
             next_action = random.choice(["QUOTE", "RETWEET", "COMMENT", "LIKE"])
@@ -507,6 +528,7 @@ def process_entries():
 
             print(f"Tweet process completed with deal_id={deal_id}, tweeted_by={tweeted_by}, next_action=${next_action}, action_account={action_account}")
             sendTgMsg(f"TweetID: {tweet_id} tweeted by: {tweeted_by} and reacted as: {next_action} by {action_account}")
+            delete_entry(deal_id)
         else:
             print("After wait current entry action is not 'TWEETED' so do not do anything")
             delete_entry(deal_id)
