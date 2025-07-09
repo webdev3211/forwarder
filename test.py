@@ -78,7 +78,7 @@ ACCOUNT_TO_URL_MAP = {
     "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
     "PuspaBaheti": "https://dealzwala.up.railway.app",
     "OfferZoneDaily": "https://offerzonedaily.onrender.com",
-    # "SastaDealsIndia": "https://sastadealshub.netlify.app"  #working fine
+    "SastaDealsIndia": "https://sastadealshub.netlify.app"  
 
 
 
