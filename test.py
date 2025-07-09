@@ -77,11 +77,11 @@ ACCOUNT_TO_URL_MAP = {
     "TheDealsValley": "https://dealsvalleyzone.webdev3211.workers.dev",
     "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
     "PuspaBaheti": "https://dealzwala.up.railway.app",
+    "OfferZoneDaily": "https://offerzonedaily.onrender.com",
     # "SastaDealsIndia": "https://sastadealshub.netlify.app"  #working fine
 
 
 
-    # "OfferZoneDaily": "https://sable-sand-quiver.glitch.me", (account search kro)
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
     # "CouponHub": "https://couponhub-delta.vercel.app/api"
