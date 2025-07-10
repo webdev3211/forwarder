@@ -166,22 +166,22 @@ def post_deal_to_twitter(text, imageUrl):
 
         headers = {'Content-Type': 'application/json'}
 
+        tweet_text = text  
+        image_url = imageUrl  
+
         try:
             response = requests.post(url, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
 
-            tweet_text = None
-            if data.get("success"):
-                tweet_text =  data.get("dealText")  # fallback to original if no 'message' in response
-            else:
-                tweet_text = text
+            if data.get("success") and data.get("dealText"):
+                tweet_text = data.get("dealText")
 
-            image_url = imageUrl  # Set to None or "" for text-only tweet
-            save_to_tweet_db(tweet_text, image_url)
-            
         except Exception as e:
             print("❌ Error from fetch-enhanced-deal API:", e)
+
+        finally:
+            save_to_tweet_db(tweet_text, image_url)
 
 
 
