@@ -18,6 +18,10 @@ import random
 from urllib.parse import urlparse, parse_qs, unquote
 from collections import deque
 
+import cloudinary
+import cloudinary.uploader
+from io import BytesIO
+
 
 api_id = int(os.getenv("API_ID"))
 api_hash = os.getenv("API_HASH")
@@ -54,6 +58,9 @@ TWITTER_REACTIONS = os.getenv("TWITTER_REACTIONS")
 NO_OF_RETRIES = int(os.getenv("NO_OF_RETRIES"))
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 TG_TEST_CHANNEL_ID = os.getenv("TG_TEST_CHANNEL_ID")
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
 
 
 
@@ -93,11 +100,16 @@ ACCOUNT_TO_URL_MAP = {
 
 ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP = {
     "EmhDeals24": True,
-    # "jyotbaheti96": True,
-    # "PuspaBaheti": True,
 }
 
 scorecard = {item: 0 for item in ACCOUNTS}
+# Step 1: Configure Cloudinary
+cloudinary.config(
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,  # Replace this
+    secure=True
+)
 
 
 executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
@@ -564,9 +576,23 @@ def upload_image_to_imgbb(file_bytes):
         print("✅ Image uploaded to ImgBB:", image_url)
         return image_url
     except Exception as e:
-        print("❌ Failed to upload image:", e)
-        return ""
+        print("❌ Failed to upload image via imgbb: ")
+        return upload_to_cloudinary(file_bytes)
 
+
+def upload_to_cloudinary(file_bytes, public_id=None):
+    try:
+        file_bytes.seek(0)  # 👈 rewind the stream before reading
+        # Upload file-like object (e.g. BytesIO)
+        response = cloudinary.uploader.upload(
+            file_bytes,
+            resource_type="image"
+        )
+        print("✅ Uploaded via cloudinary:", response["secure_url"])
+        return response["secure_url"]
+    except Exception as e:
+        print("❌ Upload failed:", e)
+        return ""
 
 
 def replace_text_links_with_urls(msg):
