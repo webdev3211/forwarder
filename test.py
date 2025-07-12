@@ -473,6 +473,7 @@ def mark_as_processed(deal_id, action, tweet_id, tweeted_by, tweet_action_taken_
     except Exception as e:
         print(f"[ERROR] Failed to mark as processed {deal_id}: {e}")
 
+
 def process_entries():
     try:
         delete_old_entries()
@@ -483,6 +484,8 @@ def process_entries():
         
         entry = entries[0]
         deal_id = entry["_id"]
+        waitNow = False
+        waitTime = 0
         if entry["action"] == "NO_ACTION":
             update_entry_action(deal_id, "PROCESSING")
             result, tweet_id, account = try_action_with_multiple_accounts(
@@ -498,7 +501,7 @@ def process_entries():
                 update_entry_action(deal_id, "TWEETED", tweet_id=tweet_id, tweeted_by=account)
                 sendTgMsg(f"Deal with tweet_id = {tweet_id} and tweeted_by = {account}")
 
-                if TWITTER_REACTIONS == True or TWITTER_REACTIONS == 'True':
+                if str(TWITTER_REACTIONS).lower() == "true":
                     # 🔀 Randomly decide if this entry should be discarded after tweeting
                     # if random.randint(1, 10) < 5:
                     #     print(f"🔁 Skipping engagement for {deal_id}, deleting...")
@@ -506,15 +509,22 @@ def process_entries():
                     #     return  # Skip further actions and waiting
 
                     # 💤 Wait before further action
-                    waittime = random.randint(180, 800)
-                    print(f"Wait {waittime} seconds for reacting to tweet={tweet_id}")
-                    time.sleep(waittime)
+                    waitNow = True
+                    waitTime = random.randint(180, 800)
                 else:
                     print("🔁 TWITTER REACTIONS OFF")
                     delete_entry(deal_id)
                     return
             else:
                 return  # already deleted inside
+
+        if waitNow == False:
+            return
+        
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏳ Wait {waitTime} seconds for reacting to tweet={tweet_id}")
+        time.sleep(waitTime)
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] ⏰ Woke up, now proceeding to next action for tweet={tweet_id}")
+
 
         entries = fetch_entries()
         if not entries: 
@@ -671,7 +681,7 @@ def checkIfCanUseDealApiV2(modified_text):
             print("❌❌ Do not use V2 because Bitl/Extp/Myntr link found ")
             return False
 
-        if "grab" in modified_text or "fast" in modified_text:
+        if "grab" in modified_text or "fast" in modified_text or "looto" in modified_text:
             print("❌❌ Do not use V2 because grab/fast found ")
             return False
 
