@@ -28,6 +28,7 @@ api_hash = os.getenv("API_HASH")
 phone_number = os.getenv("PHONE_NUMBER")
 IMGBB_API_KEY = os.getenv("IMGBB_API_KEY")
 BASE_URL = os.getenv("BASE_URL")
+BASE_URL_BACKUP = os.getenv("BASE_URL_BACKUP")
 BASE_URL_2 = os.getenv("BASE_URL_2")
 TEST_CHANNEL = os.getenv("TEST_CHANNEL")
 CRON_TIMEOUT = int(os.getenv("CRON_TIMEOUT"))
@@ -85,9 +86,6 @@ ACCOUNT_TO_URL_MAP = {
     "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
     "OfferZoneDaily": "https://offerzonedaily.onrender.com",
     "SastaDealsIndia": "https://sastadealshub.netlify.app"  
-
-
-
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
     # "CouponHub": "https://couponhub-delta.vercel.app/api"
@@ -156,15 +154,14 @@ def trigger_cron_v2(deal_id=None, tg_msg_id="", modified_text="", imageUrl=None)
 
 
 
-def post_deal_to_twitter(text, imageUrl):
+def post_deal_to_twitter(text, imageUrl, base_url=BASE_URL):
     if text is not None and len(text) > 0:
-        url = BASE_URL + '/dealapi/fetch-enhanced-deal'
+        url = base_url + '/dealapi/fetch-enhanced-deal'
         payload = {
             "deal": text,
         }
 
         headers = {'Content-Type': 'application/json'}
-
         tweet_text = text  
         image_url = imageUrl  
 
@@ -179,13 +176,18 @@ def post_deal_to_twitter(text, imageUrl):
         except Exception as e:
             print("❌ Error from fetch-enhanced-deal API:", e)
 
-        finally:
-            save_to_tweet_db(tweet_text, image_url)
+            if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
+                print("⚠️ Retrying with backup API due to server error...")
+                # return early from this call — don't execute save_to_tweet_db here
+                return post_deal_to_twitter(text, imageUrl, BASE_URL_BACKUP)
+
+        # Only reached if this is the final (successful or failed) call
+        save_to_tweet_db(tweet_text, image_url)
 
 
 
-def save_to_tweet_db(text, image_url = None):
-    url = BASE_URL + "/tweetapi"
+def save_to_tweet_db(text, image_url = None, base_url=BASE_URL):
+    url = base_url + "/tweetapi"
 
     payload = {
         "deal": text,
@@ -205,9 +207,13 @@ def save_to_tweet_db(text, image_url = None):
         check_all_twitter_apis_server_health()
         process_entries()
     except Exception as e:
-        print("❌ Error saving to Tweet DB:", e)
-        return None
-
+        # Check for "Server" or "server" in the error string
+        if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
+            print("⚠️ Detected server error. Retrying with backup API...")
+            save_to_tweet_db(text, image_url, BASE_URL_BACKUP)
+        else:
+            print("❌ Error saving to Tweet DB:", e)
+            return None
 
 
 def get_deal_by_id(deal_id):
@@ -624,9 +630,9 @@ def replace_text_links_with_urls(msg):
 
 
 
-def modify_message(text, is_deal_over = False):
+def modify_message(text, is_deal_over=False, base_url=BASE_URL):
     if text is not None and len(text) > 0 and not is_deal_over:
-        url = BASE_URL + '/api/change-deal-aff'
+        url = base_url + '/api/change-deal-aff'
         payload = {
             "message": text,
             "accessToken": ACCESS_TOKEN,
@@ -642,11 +648,19 @@ def modify_message(text, is_deal_over = False):
             response.raise_for_status()
             data = response.json()
             return data.get("message")  # fallback to original if no 'message' in response
+
         except requests.RequestException as e:
             print("❌ Error from change-deal-aff API:", e)
-            return text  # return original message in case of error
+
+            # Retry with backup base URL if "server" in error
+            if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
+                print("⚠️ Retrying with backup API due to server error...")
+                return modify_message(text, is_deal_over, base_url=BASE_URL_BACKUP)
+
+            return text  # return original message in case of any other error
     else:
         return text
+
 
 def getStore(text):
     text = text.lower()
