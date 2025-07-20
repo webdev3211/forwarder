@@ -83,7 +83,6 @@ ACCOUNT_TO_URL_MAP = {
     "DealsJunction24": "https://thedealsjunction.webdev3211.workers.dev", # FrankFrut Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36
     "TheDealsValley": "https://dealsvalleyzone.webdev3211.workers.dev",
     "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
-    "PuspaBaheti": "https://dealzwala.up.railway.app",
     "OfferZoneDaily": "https://offerzonedaily.onrender.com",
     "SastaDealsIndia": "https://sastadealshub.netlify.app"  
 
