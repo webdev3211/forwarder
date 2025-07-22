@@ -177,7 +177,7 @@ def post_deal_to_twitter(text, imageUrl, base_url=BASE_URL):
             print("❌ Error from fetch-enhanced-deal API:", e)
 
             if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
-                print("⚠️ Retrying with backup API due to server error...")
+                print("⚠️ Retrying 'post_deal_to_twitter' with backup API due to server error...")
                 # return early from this call — don't execute save_to_tweet_db here
                 return post_deal_to_twitter(text, imageUrl, BASE_URL_BACKUP)
 
@@ -267,15 +267,22 @@ def delete_entry(entry_id):
         print(f"❌ Error deleting entry {entry_id}:", e)
 
 
-def fetch_entries():
+def fetch_entries(base_url=BASE_URL):
     try:
-        response = requests.get(BASE_URL + "/tweetapi")
+        response = requests.get(base_url + "/tweetapi")
         response.raise_for_status()
         data = response.json().get("data", [])
         return data  # already sorted from backend
+
     except Exception as e:
         print("❌ Error fetching entries:", e)
+
+        if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
+            print("⚠️ Retrying 'fetch_entries' with backup API due to server error...")
+            return fetch_entries(base_url=BASE_URL_BACKUP)
+
         return []
+
 
 
 def call_generate_quote_or_comment(deal, action):
@@ -1059,8 +1066,8 @@ def clean_old_links_cache():
         del unshortened_link_cache[k]
 
 
-def unshorten_url(extracted_url):
-    url = f"{BASE_URL}/api/unshortenafflink"
+def unshorten_url(extracted_url, base_url=BASE_URL):
+    url = f"{base_url}/api/unshortenafflink"
     payload = {
         "link": extracted_url
     }
@@ -1069,18 +1076,25 @@ def unshorten_url(extracted_url):
     }
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout = 10)
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
 
         if data.get("success"):
             return data.get("url")
         else:
-            print("Failed unshortening url: ", extracted_url)
+            print("⚠️ Failed unshortening url:", extracted_url)
             return extracted_url
+
     except Exception as e:
-        print("❌❌ Some error while unshortening url: ", e)
+        print("❌❌ Some Error while unshortening url:", e)
+
+        if "HTTPSConnectionPool" in str(e).lower() and BASE_URL_BACKUP not in base_url:
+            print("⚠️ Retrying 'unshorten_url' with backup API...")
+            return unshorten_url(extracted_url, base_url=BASE_URL_BACKUP)
+
         return None
+
 
 
 
@@ -1364,7 +1378,7 @@ async def main():
                 if checkIfUnwantedText(text):
                     print("❌ Edited Msg contain unwanted things so dropping: " + text)
                     text = text + " OVER"
-                print("Deal is over or unwanted keywords added so delete ❌")
+                print("❌ Deal is over or unwanted keywords added so delete: " + text)
             else:
                 if checkIfUnwantedText(text):
                     print("❌ Edited Msg contain unwanted things so dropping: " + text)
