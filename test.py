@@ -86,14 +86,13 @@ ACCOUNT_TO_URL_MAP = {
     "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
     "OfferZoneDaily": "https://offerzonedaily.onrender.com",
     "SastaDealsIndia": "https://sastadealshub.netlify.app",
-    "AggarwalMu88573": "https://onlinedealsplatform.onrender.com"
+    "AggarwalMu88573": "https://onlinedealsplatform.onrender.com",
+    "shoppingofferh": "https://shoppingoffershub.onrender.com",
+    "fastestdiscount": "https://fastestdiscountdeals.onrender.com",
+
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
     # "CouponHub": "https://couponhub-delta.vercel.app/api"
-    # "LootDealsWorld": "https://fastestlootdeals.kiyagujral4128.workers.dev"
-    # "C": "https://c.com",
-    # "D": "https://d.com",
-    # "E": "https://e.com"
 }
 
 ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP = {
@@ -180,7 +179,7 @@ def post_deal_to_twitter(text, imageUrl, base_url=BASE_URL):
             if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
                 print("⚠️ Retrying 'post_deal_to_twitter' with backup API due to server error...")
                 # return early from this call — don't execute save_to_tweet_db here
-                return post_deal_to_twitter(text, imageUrl, BASE_URL_BACKUP)
+                return post_deal_to_twitter(text, image_url, BASE_URL_BACKUP)
 
         # Only reached if this is the final (successful or failed) call
         save_to_tweet_db(tweet_text, image_url)
