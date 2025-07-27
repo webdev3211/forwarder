@@ -89,6 +89,8 @@ ACCOUNT_TO_URL_MAP = {
     "AggarwalMu88573": "https://onlinedealsplatform.onrender.com",
     "shoppingofferh": "https://shoppingoffershub.onrender.com",
     "fastestdiscount": "https://fastestdiscountdeals.onrender.com",
+    "bestdiscounts24": "https://bestdiscounts24.onrender.com",
+    "bestdealsadda": "https://bestdealsdaily.onrender.com",
 
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
