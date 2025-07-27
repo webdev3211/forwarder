@@ -85,7 +85,8 @@ ACCOUNT_TO_URL_MAP = {
     "TheDealsValley": "https://dealsvalleyzone.webdev3211.workers.dev",
     "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
     "OfferZoneDaily": "https://offerzonedaily.onrender.com",
-    "SastaDealsIndia": "https://sastadealshub.netlify.app"  
+    "SastaDealsIndia": "https://sastadealshub.netlify.app",
+    "AggarwalMu88573": "https://onlinedealsplatform.onrender.com"
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
     # "CouponHub": "https://couponhub-delta.vercel.app/api"
@@ -659,7 +660,6 @@ def modify_message(text, is_deal_over=False, base_url=BASE_URL):
         except requests.RequestException as e:
             print("❌ Error from change-deal-aff API:", e)
 
-            # Retry with backup base URL if "server" in error
             if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
                 print("⚠️ Retrying with backup API due to server error...")
                 return modify_message(text, is_deal_over, base_url=BASE_URL_BACKUP)
