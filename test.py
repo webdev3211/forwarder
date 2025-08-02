@@ -641,7 +641,7 @@ def replace_text_links_with_urls(msg):
 
 def modify_message(text, is_deal_over=False, base_url=BASE_URL):
     if text is not None and len(text) > 0 and not is_deal_over:
-        url = base_url + '/api/change-deal-aff'
+        url = base_url + '/api/change-deal-aff-v2'
         payload = {
             "message": text,
             "accessToken": ACCESS_TOKEN,
@@ -659,7 +659,7 @@ def modify_message(text, is_deal_over=False, base_url=BASE_URL):
             return data.get("message")  # fallback to original if no 'message' in response
 
         except requests.RequestException as e:
-            print("❌ Error from change-deal-aff API:", e)
+            print("❌ Error from change-deal-aff-v2 API:", e)
 
             if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
                 print("⚠️ Retrying with backup API due to server error...")
