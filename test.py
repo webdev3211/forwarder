@@ -211,7 +211,7 @@ def save_to_tweet_db(text, image_url = None, base_url=BASE_URL):
     except Exception as e:
         # Check for "Server" or "server" in the error string
         if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
-            print("⚠️ Detected server error. Retrying with backup API...")
+            print("⚠️ Detected server error. Retrying 'save_to_tweet_db' with backup API...")
             save_to_tweet_db(text, image_url, BASE_URL_BACKUP)
         else:
             print("❌ Error saving to Tweet DB:", e)
@@ -720,13 +720,14 @@ def checkIfCanUseDealApiV2(modified_text):
 
     return True
 
-def save_to_db(modified_text, store, image_url="", tg_msg_id = ""):
+
+def save_to_db(modified_text, store, image_url="", tg_msg_id="", base_url=BASE_URL):
     url = ""
-    
+
     if USE_DEALAPI_V2 == 1 and checkIfCanUseDealApiV2(modified_text):
-        url = BASE_URL + "/dealapi/v2"
+        url = base_url + "/dealapi/v2"
     else:
-        url = BASE_URL + "/dealapi"
+        url = base_url + "/dealapi"
 
     payload = {
         "deal": modified_text,
@@ -748,8 +749,14 @@ def save_to_db(modified_text, store, image_url="", tg_msg_id = ""):
 
         print("✅ Message saved to DB with _id:", deal_id)
         return deal_id
-    except requests.RequestException as e:
+
+    except Exception as e:
         print("❌ Error saving to DB:", e)
+
+        if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
+            print("⚠️ Retrying 'save_to_db' with backup API...")
+            return save_to_db(modified_text, store, image_url, tg_msg_id, base_url=BASE_URL_BACKUP)
+
         return None
 
 
