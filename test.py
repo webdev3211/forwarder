@@ -62,7 +62,9 @@ TG_TEST_CHANNEL_ID = os.getenv("TG_TEST_CHANNEL_ID")
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
-
+UNDER_99_SOURCE_CHANNEL_ID = int(os.getenv("UNDER_99_SOURCE_CHANNEL_ID"))
+UNDER_99_BOT_TOKEN = os.getenv("UNDER_99_BOT_TOKEN")
+UNDER_99_TARGET_CHANNEL_ID = os.getenv("UNDER_99_TARGET_CHANNEL_ID")
 
 
 
@@ -1271,6 +1273,37 @@ def delete_msg_from_all_grps(event):
         print("No match found")
 
 
+def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
+    try:
+        base_url = f"https://api.telegram.org/{UNDER_99_BOT_TOKEN}"
+
+        if not image_url:  # No image, send text message
+            url = f"{base_url}/sendMessage"
+            payload = {
+                "chat_id": UNDER_99_TARGET_CHANNEL_ID,
+                "text": modified_text,
+                "parse_mode": "markdown",
+                "disable_web_page_preview": False
+            }
+        else:  # Image present, send photo
+            url = f"{base_url}/sendPhoto"
+            payload = {
+                "chat_id": UNDER_99_TARGET_CHANNEL_ID,
+                "photo": image_url,
+                "caption": modified_text,
+                "parse_mode": "markdown",
+                "disable_web_page_preview": False
+            }
+
+        response = requests.post(url, json=payload)
+        if response.status_code != 200:
+            print("❌ Error sending msg to DealsUnder99:", response.text)
+        else:
+            print("✅ Message sent successfully.")
+    except Exception as e:
+        print("Error occured while sending msg to deals99 channel due to: " + e)
+
+
 
 client = TelegramClient('forwarder_session2', api_id, api_hash)
 
@@ -1312,6 +1345,7 @@ async def main():
             msg = event.message
             text = replace_text_links_with_urls(msg)
             tg_msg_id = msg.id
+            channel_id = event.message.peer_id.channel_id
 
             checkServerHealth()
 
@@ -1349,6 +1383,11 @@ async def main():
 
             if checkIfUnwantedText(text):
                 print("❌ Modified Msg contain unwanted things so dropping: " + text)
+                return
+
+            if channel_id == UNDER_99_SOURCE_CHANNEL_ID:
+                print("✅ Msg came in deals_under_99 channel")
+                sendMsgToTgDeals99ChannelDirectly(modified_text, image_url)
                 return
 
             store = getStore(modified_text)
