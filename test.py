@@ -783,7 +783,7 @@ def checkIfUnwantedText(text):
                 print("❌ Flipkart links ban for now :", text)
                 return True
 
-        if text_lower == "back" or text_lower == "loot" or text_lower == "grab":
+        if text_lower == "back" or text_lower == "loot" or text_lower == "grab" or text_lower == "fast":
             print("❌ Only back/loot/grab msg no link:", text)
             return True 
 
@@ -1386,7 +1386,7 @@ async def main():
                 return
 
             if channel_id == UNDER_99_SOURCE_CHANNEL_ID:
-                print("✅ Msg came in deals_under_99 channel")
+                print("✅ Msg came in deals_under_99 channel: ", modified_text)
                 sendMsgToTgDeals99ChannelDirectly(modified_text, image_url)
                 return
 
