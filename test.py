@@ -1283,7 +1283,7 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
                 "chat_id": UNDER_99_TARGET_CHANNEL_ID,
                 "text": modified_text,
                 "parse_mode": "markdown",
-                "disable_web_page_preview": False
+                "disable_web_page_preview": True
             }
         else:  # Image present, send photo
             url = f"{base_url}/sendPhoto"
@@ -1292,7 +1292,7 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
                 "photo": image_url,
                 "caption": modified_text,
                 "parse_mode": "markdown",
-                "disable_web_page_preview": False
+                "disable_web_page_preview": True
             }
 
         response = requests.post(url, json=payload)
