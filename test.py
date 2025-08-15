@@ -63,6 +63,7 @@ CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
 UNDER_99_SOURCE_CHANNEL_ID = int(os.getenv("UNDER_99_SOURCE_CHANNEL_ID"))
+NON_STOP_DEALS_CHANNEL_ID = int(os.getenv("NON_STOP_DEALS_CHANNEL_ID"))
 UNDER_99_BOT_TOKEN = os.getenv("UNDER_99_BOT_TOKEN")
 UNDER_99_TARGET_CHANNEL_ID = os.getenv("UNDER_99_TARGET_CHANNEL_ID")
 
@@ -1385,8 +1386,8 @@ async def main():
                 print("❌ Modified Msg contain unwanted things so dropping: " + text)
                 return
 
-            if channel_id == UNDER_99_SOURCE_CHANNEL_ID:
-                print("✅ Msg came in deals_under_99 channel: ", modified_text)
+            if channel_id == UNDER_99_SOURCE_CHANNEL_ID or channel_id == NON_STOP_DEALS_CHANNEL_ID:
+                print("✅ Msg came in deals_under_99, nonstopdeals channel: ", modified_text)
                 sendMsgToTgDeals99ChannelDirectly(modified_text, image_url)
                 return
 
@@ -1406,14 +1407,18 @@ async def main():
     async def edited_handler(event):
         try:
             checkServerHealth()
-
+            channel_id = event.message.peer_id.channel_id
+            
             try:
-                channel_id = event.message.peer_id.channel_id
                 if channel_id == DELETE_CHANNEL_ID:
                     delete_msg_from_all_grps(event)
                     return
             except Exception as e:
                 print("Some error in deleting from all grps: ", e)
+
+            if channel_id is not None and (channel_id == UNDER_99_SOURCE_CHANNEL_ID or channel_id == NON_STOP_DEALS_CHANNEL_ID):
+                print("✏️ Msg edited in tricks, deals99 channel etc, but do nothing")
+                return
 
             edited_msg = event.message
             print("✏️ Message was edited!")
@@ -1450,6 +1455,15 @@ async def main():
             print(f"🗑️ Message(s) deleted: {deleted_id}")
 
             checkServerHealth()
+
+            try:
+                channel_id = event.message.peer_id.channel_id
+
+                if channel_id is not None and (channel_id == UNDER_99_SOURCE_CHANNEL_ID or channel_id == NON_STOP_DEALS_CHANNEL_ID):
+                    print("✏️ Msg deleted in tricks, deals99 channel, etc but do nothing")
+                    return
+            except Exception as e:
+                print("Some error while the msg deleted in tricks, deals99 channel")
 
             # Submit the delayed task to a thread
             if data_pushed_to_db.get(deleted_id):
