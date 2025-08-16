@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from datetime import datetime, timedelta
 
-
 import requests
 import json
 import re
