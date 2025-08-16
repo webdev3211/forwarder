@@ -1456,15 +1456,6 @@ async def main():
 
             checkServerHealth()
 
-            try:
-                channel_id = event.message.peer_id.channel_id
-
-                if channel_id is not None and (channel_id == UNDER_99_SOURCE_CHANNEL_ID or channel_id == NON_STOP_DEALS_CHANNEL_ID):
-                    print("✏️ Msg deleted in tricks, deals99 channel, etc but do nothing")
-                    return
-            except Exception as e:
-                print("Some error while the msg deleted in tricks, deals99 channel")
-
             # Submit the delayed task to a thread
             if data_pushed_to_db.get(deleted_id):
                 handle_delete_instant([deleted_id])
