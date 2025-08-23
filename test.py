@@ -81,18 +81,24 @@ SUCCESS = "success"
 FAILED = "failed"
 ACCOUNTS = TWITTER_ACCOUNTS
 ACCOUNT_TO_URL_MAP = {
-    "EmhDeals24": "https://frcp.onrender.com", #Oregon (US West)
-    "jyotbaheti96": "https://offerzone-u7ik.onrender.com", #Oregon (US West) Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1
-    "DealsJunction24": "https://thedealsjunction.webdev3211.workers.dev", # FrankFrut Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36
+    "EmhDeals24": "https://frcp.onrender.com", 
+    "jyotbaheti96": "https://offerzone-u7ik.onrender.com", 
+    "DealsJunction24": "https://thedealsjunction.webdev3211.workers.dev", 
     "TheDealsValley": "https://dealsvalleyzone.webdev3211.workers.dev",
     "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
-    "OfferZoneDaily": "https://offerzonedaily.onrender.com",
-    "SastaDealsIndia": "https://sastadealshub.netlify.app",
+    # "OfferZoneDaily": "https://offerzonedaily.onrender.com",
     "AggarwalMu88573": "https://onlinedealsplatform.onrender.com",
     "shoppingofferh": "https://shoppingoffershub.onrender.com",
     "fastestdiscount": "https://fastestdiscountdeals.onrender.com",
     "bestdiscounts24": "https://bestdiscounts24.onrender.com",
     "bestdealsadda": "https://bestdealsdaily.onrender.com",
+    "dealsunder99": "https://dealsunder99.onrender.com",
+    "shoppingofferon": "https://shoppingofferonline.up.railway.app",
+    "dealalertspoint": "https://dealalertspoint.up.railway.app",
+    "offerdealstrick": "https://offerdealsandtrick.onrender.com",
+    "dailydealdesire": "https://dailydealsdesire.onrender.com",
+    "PriceErrorDeals": "https://priceerrordeals.onrender.com",
+    "PriceErrorZone": "https://fastestoffersonline.netlify.app",
 
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
@@ -181,7 +187,7 @@ def post_deal_to_twitter(text, imageUrl, base_url=BASE_URL):
             print("❌ Error from fetch-enhanced-deal API:", e)
 
             if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
-                print("⚠️ Retrying 'post_deal_to_twitter' with backup API due to server error...")
+                print("⚠️ Retrying 'post_deal_to_twitter' for 'fetch-enhanced-deal' with backup API due to server error...")
                 # return early from this call — don't execute save_to_tweet_db here
                 return post_deal_to_twitter(text, image_url, BASE_URL_BACKUP)
 
@@ -664,7 +670,7 @@ def modify_message(text, is_deal_over=False, base_url=BASE_URL):
             print("❌ Error from change-deal-aff-v2 API:", e)
 
             if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
-                print("⚠️ Retrying with backup API due to server error...")
+                print("⚠️ Retrying 'modify_message' with backup API due to server error...")
                 return modify_message(text, is_deal_over, base_url=BASE_URL_BACKUP)
 
             return text  # return original message in case of any other error
