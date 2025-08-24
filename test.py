@@ -65,7 +65,8 @@ UNDER_99_SOURCE_CHANNEL_ID = int(os.getenv("UNDER_99_SOURCE_CHANNEL_ID"))
 NON_STOP_DEALS_CHANNEL_ID = int(os.getenv("NON_STOP_DEALS_CHANNEL_ID"))
 UNDER_99_BOT_TOKEN = os.getenv("UNDER_99_BOT_TOKEN")
 UNDER_99_TARGET_CHANNEL_ID = os.getenv("UNDER_99_TARGET_CHANNEL_ID")
-
+NO_OF_TWITTER_REACTORS = int(os.getenv("NO_OF_TWITTER_REACTORS"))
+MULTI_REACTION_ON = os.getenv("MULTI_REACTION_ON")
 
 
 LOCAL_TEST_BYPASS = False
@@ -109,7 +110,6 @@ ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP = {
     "EmhDeals24": True,
 }
 
-scorecard = {item: 0 for item in ACCOUNTS}
 # Step 1: Configure Cloudinary
 cloudinary.config(
     cloud_name=CLOUDINARY_CLOUD_NAME,
@@ -117,6 +117,13 @@ cloudinary.config(
     api_secret=CLOUDINARY_API_SECRET,  # Replace this
     secure=True
 )
+
+# === Constants ===
+tweet_scorecard = {item: 0 for item in ACCOUNTS}
+tweet_reaction_scorecard = {item: 0 for item in ACCOUNTS}
+MIN_WAIT_BEFORE_REACT = 180 # 3 minutes
+MAX_WAIT_BEFORE_REACT = 900 # 15 minutes
+GAP_BETWEEN_REACTIONS = (60, 180) # seconds
 
 
 executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
@@ -215,7 +222,7 @@ def save_to_tweet_db(text, image_url = None, base_url=BASE_URL):
         deal_id = response_data.get("data", {}).get("_id", None)
         print("✅ Saved to Tweet DB with _id:", deal_id)
         check_all_twitter_apis_server_health()
-        process_entries()
+        process_entries(deal_id)
     except Exception as e:
         # Check for "Server" or "server" in the error string
         if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
@@ -243,6 +250,7 @@ def get_deal_by_id(deal_id):
     except Exception as e:
         print("Error occured while getting deal by id:", e)
         return None
+
 
 def update_entry_action(deal_id, action, tweet_id=None, tweeted_by=None, tweet_action_taken_by= None, is_completed = False):
     payload = {"action": action}
@@ -312,11 +320,16 @@ def try_action_with_multiple_accounts(action_fn, tweet_id, deal_text=None, usern
         if post_owner_username is not None:
             attempted_accounts.add(post_owner_username)
     
-    for _ in range(NO_OF_RETRIES):
+    for index in range(0,NO_OF_RETRIES):
         available_accounts = [a for a in ACCOUNTS if a not in attempted_accounts]
         if not available_accounts:
             break
-        account = pick_item(allowed=available_accounts)
+
+        account = username
+        if account is None or action_fn == "tweet" or index != 0:
+            account = pick_item(allowed=available_accounts)
+            print("Is tweeting or Retry and picking another account: ", account)
+
         base_url = ACCOUNT_TO_URL_MAP[account]
         attempted_accounts.add(account)
 
@@ -496,7 +509,53 @@ def mark_as_processed(deal_id, action, tweet_id, tweeted_by, tweet_action_taken_
         print(f"[ERROR] Failed to mark as processed {deal_id}: {e}")
 
 
-def process_entries():
+
+# === Function to schedule reactions ===
+def schedule_reactions(tweet_id, deal_text, tweeted_by, deal_id):
+    print(f"Scheduling reaction for deal_id = {deal_id} and tweeted_by = {tweeted_by}")
+    eligible_accounts = [acc for acc in ACCOUNTS if acc != tweeted_by]
+    # random.shuffle(eligible_accounts)
+    selected_accounts = []
+
+    for i in range(0, NO_OF_TWITTER_REACTORS):
+        selected_accounts.append(pick_reactor_item(allowed=eligible_accounts))
+
+    def reactor_task(account, delay, action_type, index):
+        if index != 0:
+            print(f"🧵 [Reactor-{account}] Waiting {delay}s before {action_type}...")
+            time.sleep(delay)
+        else:
+            print(f"🧵 [Reactor-{account}] Doing instantly {action_type}...")
+        try:
+            result, _, action_account = try_action_with_multiple_accounts(
+                action_type.lower(),
+                tweet_id,
+                deal_text=deal_text,
+                username=account,
+                post_owner_username=tweeted_by
+            )
+            print(f"✅ [Reactor-{action_account}] {action_type} completed")
+            if result == SUCCESS:
+                mark_as_processed(deal_id, action_type, tweet_id, tweeted_by, action_account, True)
+
+            print(f"Tweet process completed with deal_id={deal_id}, tweeted_by={tweeted_by}, next_action=${action_type}, action_account={action_account}")
+            sendTgMsg(f"✅ TweetID: {tweet_id} tweeted by: {tweeted_by} and reacted as: {action_type} by {action_account}")
+            delete_entry(deal_id)
+        except Exception as e:
+            print(f"❌ [Reactor-{account}] {action_type} failed: {e}")
+
+
+    for i, account in enumerate(selected_accounts):
+        initial_wait = random.randint(MIN_WAIT_BEFORE_REACT, MAX_WAIT_BEFORE_REACT)
+        delay = initial_wait + i * random.randint(*GAP_BETWEEN_REACTIONS)
+        action_type = random.choice(["QUOTE", "RETWEET", "COMMENT", "LIKE"])
+
+        # Submit task to executor
+        executor.submit(reactor_task, account, delay, action_type, i)
+
+
+
+def process_entries(deal_id):
     try:
         delete_old_entries()
 
@@ -504,7 +563,12 @@ def process_entries():
         if not entries: 
             return
         
-        entry = entries[0]
+        temp_entry = get_deal_by_id(deal_id)
+        if temp_entry:
+            entry = temp_entry
+        else:
+            entry = entries[0]
+            
         deal_id = entry["_id"]
         waitNow = False
         waitTime = 0
@@ -524,12 +588,6 @@ def process_entries():
                 sendTgMsg(f"Deal with tweet_id = {tweet_id} and tweeted_by = {account}")
 
                 if str(TWITTER_REACTIONS).lower() == "true":
-                    # 🔀 Randomly decide if this entry should be discarded after tweeting
-                    # if random.randint(1, 10) < 5:
-                    #     print(f"🔁 Skipping engagement for {deal_id}, deleting...")
-                    #     delete_entry(deal_id)
-                    #     return  # Skip further actions and waiting
-
                     # 💤 Wait before further action
                     waitNow = True
                     waitTime = random.randint(180, 800)
@@ -559,20 +617,24 @@ def process_entries():
             entry = entries[0]
         deal_id = entry["_id"]
         if entry["action"] == "TWEETED":
-            next_action = random.choice(["QUOTE", "RETWEET", "COMMENT", "LIKE"])
-            action_type = next_action.lower()
             tweeted_by = entry["tweeted_by"]
-            tweet_id = entry["tweet_id"]
-            deal_text = entry["deal"]
-            username = tweeted_by
+            if MULTI_REACTION_ON == True or MULTI_REACTION_ON == 'True':    
+                schedule_reactions(tweet_id, entry["deal"], tweeted_by, deal_id)
+            else:
+                next_action = random.choice(["QUOTE", "RETWEET", "COMMENT", "LIKE"])
+                action_type = next_action.lower()
+                tweeted_by = entry["tweeted_by"]
+                tweet_id = entry["tweet_id"]
+                deal_text = entry["deal"]
+                username = tweeted_by
 
-            result, _, action_account = try_action_with_multiple_accounts(action_type, tweet_id, deal_text=deal_text, username=username, post_owner_username=username, deal_id = deal_id)
-            if result == SUCCESS:
-                mark_as_processed(deal_id, next_action, tweet_id, tweeted_by, action_account, True)
+                result, _, action_account = try_action_with_multiple_accounts(action_type, tweet_id, deal_text=deal_text, username=username, post_owner_username=username, deal_id = deal_id)
+                if result == SUCCESS:
+                    mark_as_processed(deal_id, next_action, tweet_id, tweeted_by, action_account, True)
 
-            print(f"Tweet process completed with deal_id={deal_id}, tweeted_by={tweeted_by}, next_action=${next_action}, action_account={action_account}")
-            sendTgMsg(f"TweetID: {tweet_id} tweeted by: {tweeted_by} and reacted as: {next_action} by {action_account}")
-            delete_entry(deal_id)
+                print(f"Tweet process completed with deal_id={deal_id}, tweeted_by={tweeted_by}, next_action=${next_action}, action_account={action_account}")
+                sendTgMsg(f"TweetID: {tweet_id} tweeted by: {tweeted_by} and reacted as: {next_action} by {action_account}")
+                delete_entry(deal_id)
         else:
             print("After wait current entry action is not 'TWEETED' so do not do anything")
             delete_entry(deal_id)
@@ -946,7 +1008,7 @@ def check_all_twitter_apis_server_health():
         try:
             response = requests.get(url, timeout=50)
             if response.status_code == 200:
-                print(f"✅ {account} is healthy: {response.text}")
+                # print(f"✅ {account} is healthy: {response.text}")
             else:
                 print(f"⚠️ {account} responded with status {response.status_code}")
         except requests.RequestException as e:
@@ -975,8 +1037,8 @@ def pick_item(allowed=None):
     if allowed is None:
         allowed = accounts
 
-    # Filter scorecard based on allowed accounts
-    filtered_scores = {item: score for item, score in scorecard.items() if item in allowed}
+    # Filter tweet_scorecard based on allowed accounts
+    filtered_scores = {item: score for item, score in tweet_scorecard.items() if item in allowed}
 
     if not filtered_scores:
         raise ValueError("Allowed list has no valid accounts.")
@@ -985,9 +1047,31 @@ def pick_item(allowed=None):
     candidates = [item for item, score in filtered_scores.items() if score == min_score]
 
     chosen = random.choice(candidates)
-    scorecard[chosen] += 1
-    print("scorecard: " + str(scorecard) + " and chosen one is: " + chosen)
+    tweet_scorecard[chosen] += 1
+    print("tweet_scorecard: " + str(tweet_scorecard) + " and chosen one is: " + chosen)
     return chosen
+
+
+def pick_reactor_item(allowed=None):
+    # Default: use all accounts
+    if allowed is None:
+        allowed = accounts
+
+    # Filter tweet_reaction_scorecard based on allowed accounts
+    filtered_scores = {item: score for item, score in tweet_reaction_scorecard.items() if item in allowed}
+
+    if not filtered_scores:
+        raise ValueError("Allowed list has no valid accounts.")
+
+    min_score = min(filtered_scores.values())
+    candidates = [item for item, score in filtered_scores.items() if score == min_score]
+
+    chosen = random.choice(candidates)
+    tweet_reaction_scorecard[chosen] += 1
+    print("tweet_reaction_scorecard: " + str(tweet_reaction_scorecard) + " and chosen reactor is: " + chosen)
+    return chosen
+
+
 
 
 def extract_first_url(text):
