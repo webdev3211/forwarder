@@ -1007,9 +1007,7 @@ def check_all_twitter_apis_server_health():
         url = f"{base_url.rstrip('/')}/healthcheck"
         try:
             response = requests.get(url, timeout=50)
-            if response.status_code == 200:
-                # print(f"✅ {account} is healthy: {response.text}")
-            else:
+            if response.status_code != 200:
                 print(f"⚠️ {account} responded with status {response.status_code}")
         except requests.RequestException as e:
             print(f"❌ {account} health check failed: {e}")
