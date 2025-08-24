@@ -626,7 +626,7 @@ def process_entries(deal_id):
                 tweeted_by = entry["tweeted_by"]
                 tweet_id = entry["tweet_id"]
                 deal_text = entry["deal"]
-                username = tweeted_by
+                username = None
 
                 result, _, action_account = try_action_with_multiple_accounts(action_type, tweet_id, deal_text=deal_text, username=username, post_owner_username=username, deal_id = deal_id)
                 if result == SUCCESS:
