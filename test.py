@@ -326,7 +326,7 @@ def try_action_with_multiple_accounts(action_fn, tweet_id, deal_text=None, usern
             break
 
         account = username
-        if account is None or action_fn == "tweet" or index != 0:
+        if action_fn == "tweet" or index != 0:
             account = pick_item(allowed=available_accounts)
             print("Is tweeting or Retry and picking another account: ", account)
 
