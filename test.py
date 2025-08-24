@@ -1046,7 +1046,8 @@ def pick_item(allowed=None):
 
     chosen = random.choice(candidates)
     tweet_scorecard[chosen] += 1
-    print("tweet_scorecard: " + str(tweet_scorecard) + " and chosen one is: " + chosen)
+    print("CHOSEN_TWEET_ACC = " + chosen)
+    # print("tweet_scorecard: " + str(tweet_scorecard) + " and chosen one is: " + chosen)
     return chosen
 
 
@@ -1066,7 +1067,8 @@ def pick_reactor_item(allowed=None):
 
     chosen = random.choice(candidates)
     tweet_reaction_scorecard[chosen] += 1
-    print("tweet_reaction_scorecard: " + str(tweet_reaction_scorecard) + " and chosen reactor is: " + chosen)
+    print("CHOSEN_TWEET_REACTOR_ACCOUNT = " + chosen)
+    # print("tweet_reaction_scorecard: " + str(tweet_reaction_scorecard) + " and chosen reactor is: " + chosen)
     return chosen
 
 
