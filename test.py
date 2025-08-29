@@ -328,7 +328,7 @@ def try_action_with_multiple_accounts(action_fn, tweet_id, deal_text=None, usern
         account = username
         if action_fn == "tweet" or index != 0:
             account = pick_item(allowed=available_accounts)
-            print("Is tweeting or Retry and picking another account: ", account)
+            print("Is tweeting or Retry and picking another account: ", dummyname(account))
 
         base_url = ACCOUNT_TO_URL_MAP[account]
         attempted_accounts.add(account)
@@ -512,7 +512,7 @@ def mark_as_processed(deal_id, action, tweet_id, tweeted_by, tweet_action_taken_
 
 # === Function to schedule reactions ===
 def schedule_reactions(tweet_id, deal_text, tweeted_by, deal_id):
-    print(f"Scheduling reaction for deal_id = {deal_id} and tweeted_by = {tweeted_by}")
+    print(f"Scheduling reaction for deal_id = {deal_id} and tweeted_by = {dummyname(tweeted_by)}")
     eligible_accounts = [acc for acc in ACCOUNTS if acc != tweeted_by]
     # random.shuffle(eligible_accounts)
     selected_accounts = []
@@ -522,10 +522,10 @@ def schedule_reactions(tweet_id, deal_text, tweeted_by, deal_id):
 
     def reactor_task(account, delay, action_type, index):
         if index != 0:
-            print(f"🧵 [Reactor-{account}] Waiting {delay}s before {action_type}...")
+            print(f"🧵 [Reactor-{dummyname(account)}] Waiting {delay}s before {action_type}...")
             time.sleep(delay)
         else:
-            print(f"🧵 [Reactor-{account}] Doing instantly {action_type}...")
+            print(f"🧵 [Reactor-{dummyname(account)}] Doing instantly {action_type}...")
         try:
             result, _, action_account = try_action_with_multiple_accounts(
                 action_type.lower(),
@@ -534,11 +534,11 @@ def schedule_reactions(tweet_id, deal_text, tweeted_by, deal_id):
                 username=account,
                 post_owner_username=tweeted_by
             )
-            print(f"✅ [Reactor-{action_account}] {action_type} completed")
+            print(f"✅ [Reactor-{dummyname(action_account)}] {action_type} completed")
             if result == SUCCESS:
                 mark_as_processed(deal_id, action_type, tweet_id, tweeted_by, action_account, True)
 
-            print(f"Tweet process completed with deal_id={deal_id}, tweeted_by={tweeted_by}, next_action=${action_type}, action_account={action_account}")
+            print(f"Tweet process completed with deal_id={deal_id}, tweeted_by={dummyname(tweeted_by)}, next_action=${action_type}, action_account={dummyname(action_account)}")
             sendTgMsg(f"✅ TweetID: {tweet_id} tweeted by: {tweeted_by} and reacted as: {action_type} by {action_account}")
             delete_entry(deal_id)
         except Exception as e:
@@ -628,7 +628,7 @@ def process_entries(deal_id):
                 deal_text = entry["deal"]
                 username = None
 
-                result, _, action_account = try_action_with_multiple_accounts(action_type, tweet_id, deal_text=deal_text, username=username, post_owner_username=username, deal_id = deal_id)
+                result, _, action_account = try_action_with_multiple_accounts(action_type, tweet_id, deal_text=deal_text, username=username, post_owner_username=tweeted_by, deal_id = deal_id)
                 if result == SUCCESS:
                     mark_as_processed(deal_id, next_action, tweet_id, tweeted_by, action_account, True)
 
@@ -1046,7 +1046,7 @@ def pick_item(allowed=None):
 
     chosen = random.choice(candidates)
     tweet_scorecard[chosen] += 1
-    print("CHOSEN_TWEET_ACC = " + chosen)
+    print("CHOSEN_TWEET_ACC = " + dummyname(chosen))
     # print("tweet_scorecard: " + str(tweet_scorecard) + " and chosen one is: " + chosen)
     return chosen
 
@@ -1067,11 +1067,18 @@ def pick_reactor_item(allowed=None):
 
     chosen = random.choice(candidates)
     tweet_reaction_scorecard[chosen] += 1
-    print("CHOSEN_TWEET_REACTOR_ACCOUNT = " + chosen)
+    print("CHOSEN_TWEET_REACTOR_ACCOUNT = " + dummyname(chosen))
     # print("tweet_reaction_scorecard: " + str(tweet_reaction_scorecard) + " and chosen reactor is: " + chosen)
     return chosen
 
 
+def dummyname(account):
+    try:
+        # replace "error" (any case) with "E"
+        return re.sub(r"error", "E", account, flags=re.IGNORECASE)
+    except Exception as e:
+        print("Error occured while putting dummyname")
+        return account
 
 
 def extract_first_url(text):
