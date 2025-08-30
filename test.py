@@ -1074,8 +1074,11 @@ def pick_reactor_item(allowed=None):
 
 def dummyname(account):
     try:
-        # replace "error" (any case) with "E"
-        return re.sub(r"error", "E", account, flags=re.IGNORECASE)
+        if account is None:
+            return account
+        else:
+            # replace "error" (any case) with "E"
+            return re.sub(r"error", "E", account, flags=re.IGNORECASE)
     except Exception as e:
         print("Error occured while putting dummyname: ", e)
         return account
