@@ -1077,7 +1077,7 @@ def dummyname(account):
         # replace "error" (any case) with "E"
         return re.sub(r"error", "E", account, flags=re.IGNORECASE)
     except Exception as e:
-        print("Error occured while putting dummyname")
+        print("Error occured while putting dummyname: ", e)
         return account
 
 
