@@ -1377,6 +1377,10 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
     try:
         base_url = f"https://api.telegram.org/{UNDER_99_BOT_TOKEN}"
 
+        if modified_text is None or len(modified_text) == 0:
+            print("Deal text msg is empty")
+            return
+
         if not image_url:  # No image, send text message
             url = f"{base_url}/sendMessage"
             payload = {
@@ -1394,6 +1398,7 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
                 "parse_mode": "markdown",
                 "disable_web_page_preview": True
             }
+            print("Deals99 modified_text: ", modified_text)
 
         response = requests.post(url, json=payload)
         if response.status_code != 200:
