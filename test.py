@@ -63,6 +63,7 @@ CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
 UNDER_99_SOURCE_CHANNEL_ID = int(os.getenv("UNDER_99_SOURCE_CHANNEL_ID"))
 NON_STOP_DEALS_CHANNEL_ID = int(os.getenv("NON_STOP_DEALS_CHANNEL_ID"))
+TECH_DEAL_SHOP_CHANNEL_ID = int(os.getenv("TECH_DEAL_SHOP_CHANNEL_ID"))
 UNDER_99_BOT_TOKEN = os.getenv("UNDER_99_BOT_TOKEN")
 UNDER_99_TARGET_CHANNEL_ID = os.getenv("UNDER_99_TARGET_CHANNEL_ID")
 NO_OF_TWITTER_REACTORS = int(os.getenv("NO_OF_TWITTER_REACTORS"))
@@ -823,7 +824,7 @@ def save_to_db(modified_text, store, image_url="", tg_msg_id="", base_url=BASE_U
     except Exception as e:
         print("❌ Error saving to DB:", e)
 
-        if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
+        if ("server" in str(e).lower() or "connection" in str(e).lower()) and BASE_URL_BACKUP not in base_url:
             print("⚠️ Retrying 'save_to_db' with backup API...")
             return save_to_db(modified_text, store, image_url, tg_msg_id, base_url=BASE_URL_BACKUP)
 
@@ -1377,8 +1378,8 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
     try:
         base_url = f"https://api.telegram.org/{UNDER_99_BOT_TOKEN}"
 
-        if modified_text is None or len(modified_text) == 0:
-            print("Deal text msg is empty")
+        if (not modified_text or modified_text == ".") and not image_url:
+            print("Deal text msg is empty with no image")
             return
 
         if not image_url:  # No image, send text message
@@ -1407,6 +1408,15 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
             print("✅ Message sent successfully.")
     except Exception as e:
         print("Error occured while sending msg to deals99 channel due to: " + e)
+
+
+
+def channelMappedToDeals99(channel_id):
+    return channel_id in {
+        UNDER_99_SOURCE_CHANNEL_ID,
+        NON_STOP_DEALS_CHANNEL_ID,
+        TECH_DEAL_SHOP_CHANNEL_ID,
+    }
 
 
 
@@ -1490,8 +1500,8 @@ async def main():
                 print("❌ Modified Msg contain unwanted things so dropping: " + text)
                 return
 
-            if channel_id == UNDER_99_SOURCE_CHANNEL_ID or channel_id == NON_STOP_DEALS_CHANNEL_ID:
-                print("✅ Msg came in deals_under_99, nonstopdeals channel: ", modified_text)
+            if channelMappedToDeals99(channel_id):
+                print("✅ Msg came in deals_under_99, nonstopdeals, techdealsshop channel: ", modified_text)
                 sendMsgToTgDeals99ChannelDirectly(modified_text, image_url)
                 return
 
@@ -1520,8 +1530,8 @@ async def main():
             except Exception as e:
                 print("Some error in deleting from all grps: ", e)
 
-            if channel_id is not None and (channel_id == UNDER_99_SOURCE_CHANNEL_ID or channel_id == NON_STOP_DEALS_CHANNEL_ID):
-                print("✏️ Msg edited in tricks, deals99 channel etc, but do nothing")
+            if channelMappedToDeals99(channel_id):
+                print("✏️ Msg edited in tricks, deals99, techdealsshop channel etc, but do nothing")
                 return
 
             edited_msg = event.message
