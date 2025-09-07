@@ -1200,22 +1200,25 @@ def unshorten_url(extracted_url, base_url=BASE_URL):
         return None
 
 
-
 def errorRetryConditionMet(error, base_url, func_name):
-    if error and (BASE_URL_BACKUP not in base_url or base_url != BASE_URL_BACKUP):
-        err = str(error).lower()
-        if (
-            "httpsconnectionpool" in err
-            or "service" in err
-            or "server" in err
-            or "timed out" in err
-            or "timeout" in err 
-            or "connection" in err 
-        ):
-            print(f"⚠️ Retrying '{func_name}' with backup API...")
-            return True
-    return False
-
+    try:
+        if error and base_url != BASE_URL_BACKUP:
+            err = str(error).lower()
+            retryable_patterns = [
+                "httpsconnectionpool",
+                "service",
+                "server",
+                "timed out",
+                "timeout",
+                "connection",
+            ]
+            if any(p in err for p in retryable_patterns):
+                print(f"⚠️ Retrying '{func_name}' with backup API...")
+                return True
+        return False
+    except Exception as e:
+        print("⚠️ Error in 'errorRetryConditionMet':", e)
+        return False
 
 
 
