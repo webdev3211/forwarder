@@ -194,8 +194,7 @@ def post_deal_to_twitter(text, imageUrl, base_url=BASE_URL):
         except Exception as e:
             print("❌ Error from fetch-enhanced-deal API:", e)
 
-            if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
-                print("⚠️ Retrying 'post_deal_to_twitter' for 'fetch-enhanced-deal' with backup API due to server error...")
+            if errorRetryConditionMet(e, base_url, 'post_deal_to_twitter'):
                 # return early from this call — don't execute save_to_tweet_db here
                 return post_deal_to_twitter(text, image_url, BASE_URL_BACKUP)
 
@@ -225,9 +224,7 @@ def save_to_tweet_db(text, image_url = None, base_url=BASE_URL):
         check_all_twitter_apis_server_health()
         process_entries(deal_id)
     except Exception as e:
-        # Check for "Server" or "server" in the error string
-        if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
-            print("⚠️ Detected server error. Retrying 'save_to_tweet_db' with backup API...")
+        if errorRetryConditionMet(e, base_url, 'save_to_tweet_db'):
             save_to_tweet_db(text, image_url, BASE_URL_BACKUP)
         else:
             print("❌ Error saving to Tweet DB:", e)
@@ -296,8 +293,7 @@ def fetch_entries(base_url=BASE_URL):
     except Exception as e:
         print("❌ Error fetching entries:", e)
 
-        if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
-            print("⚠️ Retrying 'fetch_entries' with backup API due to server error...")
+        if errorRetryConditionMet(e, base_url, 'fetch_entries'):
             return fetch_entries(base_url=BASE_URL_BACKUP)
 
         return []
@@ -732,8 +728,7 @@ def modify_message(text, is_deal_over=False, base_url=BASE_URL):
         except requests.RequestException as e:
             print("❌ Error from change-deal-aff-v2 API:", e)
 
-            if "server" in str(e).lower() and BASE_URL_BACKUP not in base_url:
-                print("⚠️ Retrying 'modify_message' with backup API due to server error...")
+            if errorRetryConditionMet(e, base_url, 'modify_message'):
                 return modify_message(text, is_deal_over, base_url=BASE_URL_BACKUP)
 
             return text  # return original message in case of any other error
@@ -824,8 +819,7 @@ def save_to_db(modified_text, store, image_url="", tg_msg_id="", base_url=BASE_U
     except Exception as e:
         print("❌ Error saving to DB:", e)
 
-        if ("server" in str(e).lower() or "connection" in str(e).lower()) and BASE_URL_BACKUP not in base_url:
-            print("⚠️ Retrying 'save_to_db' with backup API...")
+        if errorRetryConditionMet(e, base_url, 'save_to_db'):
             return save_to_db(modified_text, store, image_url, tg_msg_id, base_url=BASE_URL_BACKUP)
 
         return None
@@ -1200,11 +1194,27 @@ def unshorten_url(extracted_url, base_url=BASE_URL):
     except Exception as e:
         print("❌❌ Some Error while unshortening url:", e)
 
-        if "HTTPSConnectionPool" in str(e).lower() and BASE_URL_BACKUP not in base_url:
-            print("⚠️ Retrying 'unshorten_url' with backup API...")
+        if errorRetryConditionMet(e, base_url, 'unshorten_url'):
             return unshorten_url(extracted_url, base_url=BASE_URL_BACKUP)
 
         return None
+
+
+
+def errorRetryConditionMet(error, base_url, func_name):
+    if error and (BASE_URL_BACKUP not in base_url or base_url != BASE_URL_BACKUP):
+        err = str(error).lower()
+        if (
+            "httpsconnectionpool" in err
+            or "service" in err
+            or "server" in err
+            or "timed out" in err
+            or "timeout" in err 
+            or "connection" in err 
+        ):
+            print(f"⚠️ Retrying '{func_name}' with backup API...")
+            return True
+    return False
 
 
 
