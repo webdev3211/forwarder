@@ -1393,9 +1393,9 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
     try:
         base_url = f"https://api.telegram.org/{UNDER_99_BOT_TOKEN}"
 
-        if (not modified_text or modified_text == ".") and not image_url:
-            print("Deal text msg is empty with no image")
-            return
+        # if (not modified_text or modified_text == ".") and not image_url:
+        #     print("Deal text msg is empty with no image")
+        #     return
 
         if not image_url:  # No image, send text message
             url = f"{base_url}/sendMessage"
