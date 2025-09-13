@@ -1428,12 +1428,10 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
 
 def channelMappedToDeals99(channel_id):
     if channel_id is not None:
-        return (
-            channel_id == UNDER_99_SOURCE_CHANNEL_ID or 
-            channel_id == NON_STOP_DEALS_CHANNEL_ID or 
-            channel_id == TECH_DEAL_SHOP_CHANNEL_ID 
-        )
-    return False
+        print("Deal came in channel_id = ", channel_id)
+        return channel_id == UNDER_99_SOURCE_CHANNEL_ID or channel_id == NON_STOP_DEALS_CHANNEL_ID or channel_id == TECH_DEAL_SHOP_CHANNEL_ID 
+    else:
+        return False
 
 
 client = TelegramClient('forwarder_session2', api_id, api_hash)
