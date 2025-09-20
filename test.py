@@ -88,19 +88,21 @@ ACCOUNT_TO_URL_MAP = {
     "DealsJunction24": "https://thedealsjunction.webdev3211.workers.dev", 
     "TheDealsValley": "https://dealsvalleyzone.webdev3211.workers.dev",
     "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
-    # "OfferZoneDaily": "https://offerzonedaily.onrender.com",
-    "AggarwalMu88573": "https://onlinedealsplatform.onrender.com",
     "shoppingofferh": "https://shoppingoffershub.onrender.com",
     "fastestdiscount": "https://fastestdiscountdeals.onrender.com",
-    "bestdiscounts24": "https://bestdiscounts24.onrender.com",
     "bestdealsadda": "https://bestdealsdaily.onrender.com",
-    "dealsunder99": "https://dealsunder99.onrender.com",
     "shoppingofferon": "https://shoppingofferonline.up.railway.app",
     "dealalertspoint": "https://dealalertspoint.up.railway.app",
     "offerdealstrick": "https://offerdealsandtrick.onrender.com",
     "dailydealdesire": "https://dailydealsdesire.onrender.com",
     "PriceErrorDeals": "https://priceerrordeals.onrender.com",
     "PriceErrorZone": "https://fastestoffersonline.netlify.app",
+
+    #Banned
+    # "OfferZoneDaily": "https://offerzonedaily.onrender.com",
+    # "bestdiscounts24": "https://bestdiscounts24.onrender.com",
+    # "AggarwalMu88573": "https://onlinedealsplatform.onrender.com",
+    # "dealsunder99": "https://dealsunder99.onrender.com",
 
     # no creds added
     # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
@@ -1172,6 +1174,10 @@ def clean_old_links_cache():
 
 
 def unshorten_url(extracted_url, base_url=BASE_URL):
+     # ✅ Skip API call for some urls
+    if extracted_url is not None and ("swiggy" in extracted_url.lower() or "blinkit" in extracted_url.lower()):
+        return extracted_url
+
     url = f"{base_url}/api/unshortenafflink"
     payload = {
         "link": extracted_url
