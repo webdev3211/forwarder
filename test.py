@@ -158,12 +158,9 @@ def trigger_cron_v2(deal_id=None, tg_msg_id="", modified_text="", imageUrl=None)
                 (POST_TO_TWITTER is True or POST_TO_TWITTER == "True") and
                 len(modified_text.strip().split()) >= 5
             ):
-                now = datetime.now()
-                last_time = last_tweet_time.get("timestamp")
-
-                if last_time is None or (now - last_time) >= timedelta(minutes=TWITTER_MINS_TO_WAIT):
-                    post_deal_to_twitter(modified_text, imageUrl)
+                if can_post_to_twitter():
                     last_tweet_time["timestamp"] = now
+                    post_deal_to_twitter(modified_text, imageUrl)
                 else:
                     print(f"⏳ Skipping Twitter post — {TWITTER_MINS_TO_WAIT} mins not yet passed since last post.")
 
@@ -656,6 +653,16 @@ def sendTgMsg(msg):
         print("Telegram message sent successfully.")
     except requests.exceptions.RequestException as e:
         print("Failed sending TG msg:", e)
+
+
+
+def can_post_to_twitter():
+    now = datetime.now()
+    last_time = last_tweet_time.get("timestamp")
+    if last_time is None or (now - last_time) >= timedelta(minutes=TWITTER_MINS_TO_WAIT):
+        return True
+    return False
+
 
 
 
