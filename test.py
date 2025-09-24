@@ -310,6 +310,10 @@ def call_generate_quote_or_comment(deal, action):
         return res.json().get("content", "")
     except Exception as e:
         print("❌ Error generating quote/comment:", e)
+        
+        if errorRetryConditionMet(e, base_url, 'call_generate_quote_or_comment'):
+            return call_generate_quote_or_comment(base_url=BASE_URL_BACKUP)
+
         return deal
 
 
@@ -1399,9 +1403,9 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
     try:
         base_url = f"https://api.telegram.org/{UNDER_99_BOT_TOKEN}"
 
-        # if (not modified_text or modified_text == ".") and not image_url:
-        #     print("Deal text msg is empty with no image")
-        #     return
+        if (not modified_text or modified_text == "." or modified_text.strip() == "") and not image_url:
+            print("Deal text msg is empty with no image")
+            return
 
         if not image_url:  # No image, send text message
             url = f"{base_url}/sendMessage"
