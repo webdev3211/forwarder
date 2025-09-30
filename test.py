@@ -1211,7 +1211,7 @@ def unshorten_url(extracted_url, base_url=BASE_URL):
             return extracted_url
 
     except Exception as e:
-        print(f"❌❌ Some Error while unshortening url: {}", e)
+        print(f"❌❌ Some Error while unshortening url: {e}")
 
         if errorRetryConditionMet(e, base_url, 'unshorten_url'):
             return unshorten_url(extracted_url, base_url=BASE_URL_BACKUP)
