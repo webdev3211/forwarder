@@ -302,7 +302,7 @@ def fetch_entries(base_url=BASE_URL):
 
 
 
-def call_generate_quote_or_comment(deal, action):
+def call_generate_quote_or_comment(deal, action, base_url=BASE_URL):
     url = BASE_URL + "/tweetapi" + "/generate-quote-or-comment"
     try:
         res = requests.post(url, json={"deal": deal, "action": action})
@@ -312,7 +312,7 @@ def call_generate_quote_or_comment(deal, action):
         print("❌ Error generating quote/comment:", e)
         
         if errorRetryConditionMet(e, base_url, 'call_generate_quote_or_comment'):
-            return call_generate_quote_or_comment(base_url=BASE_URL_BACKUP)
+            return call_generate_quote_or_comment(deal, action, base_url=BASE_URL_BACKUP)
 
         return deal
 
@@ -1177,9 +1177,18 @@ def clean_old_links_cache():
         del unshortened_link_cache[k]
 
 
+
+def ignore_some_urls_for_shortening(url):
+    try:
+        url = url.lower()
+        if ("swiggy" in url.lower() or "blinkit" in url.lower() or "cred" in url.lower()):
+            return True
+    except Exception as e:
+        return False
+
 def unshorten_url(extracted_url, base_url=BASE_URL):
      # ✅ Skip API call for some urls
-    if extracted_url is not None and ("swiggy" in extracted_url.lower() or "blinkit" in extracted_url.lower()):
+    if extracted_url is not None and ignore_some_urls_for_shortening(extracted_url):
         return extracted_url
 
     url = f"{base_url}/api/unshortenafflink"
@@ -1202,7 +1211,7 @@ def unshorten_url(extracted_url, base_url=BASE_URL):
             return extracted_url
 
     except Exception as e:
-        print("❌❌ Some Error while unshortening url:", e)
+        print(f"❌❌ Some Error while unshortening url: {}", e)
 
         if errorRetryConditionMet(e, base_url, 'unshorten_url'):
             return unshorten_url(extracted_url, base_url=BASE_URL_BACKUP)
