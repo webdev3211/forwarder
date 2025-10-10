@@ -1273,8 +1273,11 @@ def extract_real_url_if_wrapped(url):
     else:
         return url
 
-def storeFirstLinkAndCheckIfDuplicate(text):
+def storeFirstLinkAndCheckIfDuplicate(text, can_be_ignored=False):
     try:
+        if can_be_ignored:
+            return False
+
         clean_old_links_cache()
 
         url_extracted = extract_first_url(text)
@@ -1494,6 +1497,7 @@ async def main():
             text = replace_text_links_with_urls(msg)
             tg_msg_id = msg.id
             channel_id = event.message.peer_id.channel_id
+            channel_mapped_to_deals99 = channelMappedToDeals99(channel_id)
 
             checkServerHealth()
 
@@ -1507,7 +1511,7 @@ async def main():
                     return
 
             if HANDLE_DUPLICATES is True or HANDLE_DUPLICATES == "True":
-                has_duplicate = storeFirstLinkAndCheckIfDuplicate(text)
+                has_duplicate = storeFirstLinkAndCheckIfDuplicate(text, channel_mapped_to_deals99)
                 if has_duplicate:
                     print("⚠️ Duplicate message sent by diff sources, skipping..." + text)
                     return
@@ -1533,7 +1537,7 @@ async def main():
                 print("❌ Modified Msg contain unwanted things so dropping: " + text)
                 return
 
-            if channelMappedToDeals99(channel_id):
+            if channel_mapped_to_deals99 == True:
                 print("✅ Msg came in deals_under_99, nonstopdeals, techdealsshop channel: ", modified_text)
                 sendMsgToTgDeals99ChannelDirectly(modified_text, image_url)
                 return
