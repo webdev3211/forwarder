@@ -1273,6 +1273,14 @@ def extract_real_url_if_wrapped(url):
     else:
         return url
 
+
+def get_amazon_length(long_url: str) -> int:
+    """Return custom Amazon link truncation length based on content."""
+    if "reward" in long_url.lower():
+        return 71
+    return LINK_KEY_LENGTHS.get("amazon", 35)
+
+
 def storeFirstLinkAndCheckIfDuplicate(text, can_be_ignored=False):
     try:
         if can_be_ignored:
@@ -1294,7 +1302,9 @@ def storeFirstLinkAndCheckIfDuplicate(text, can_be_ignored=False):
 
         key = None
 
-        AMAZON_LENGTH = LINK_KEY_LENGTHS.get("amazon", 30)
+
+
+        AMAZON_LENGTH = LINK_KEY_LENGTHS.get("amazon", get_amazon_length(long_url))
         FLIPKART_LENGTH = LINK_KEY_LENGTHS.get("flipkart", 30)
         MYNTRA_LENGTH = LINK_KEY_LENGTHS.get("myntra", 40)
         AJIO_LENGTH = LINK_KEY_LENGTHS.get("ajio", 40)
@@ -1302,7 +1312,7 @@ def storeFirstLinkAndCheckIfDuplicate(text, can_be_ignored=False):
         if "amazon" in long_url:
             match = re.search(r"(https?://[^ ]+/(?:dp|d)/[^/?]+)", long_url)
             if match:
-                key = match.group(1)[:35]
+                key = match.group(1)[:AMAZON_LENGTH]
             else:
                 key = long_url[0:AMAZON_LENGTH]
         elif "flipkart" in long_url and "pid=" in long_url:
