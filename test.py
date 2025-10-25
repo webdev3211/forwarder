@@ -89,7 +89,6 @@ ACCOUNT_TO_URL_MAP = {
     "TheDealsValley": "https://dealsvalleyzone.webdev3211.workers.dev",
     "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
     "shoppingofferh": "https://shoppingoffershub.onrender.com",
-    "fastestdiscount": "https://fastestdiscountdeals.onrender.com",
     "bestdealsadda": "https://bestdealsdaily.onrender.com",
     "shoppingofferon": "https://shoppingofferonline.up.railway.app",
     "dealalertspoint": "https://dealalertspoint.up.railway.app",
@@ -99,6 +98,7 @@ ACCOUNT_TO_URL_MAP = {
     "PriceErrorZone": "https://fastestoffersonline.netlify.app",
 
     #Banned
+    # "fastestdiscount": "https://fastestdiscountdeals.onrender.com",
     # "OfferZoneDaily": "https://offerzonedaily.onrender.com",
     # "bestdiscounts24": "https://bestdiscounts24.onrender.com",
     # "AggarwalMu88573": "https://onlinedealsplatform.onrender.com",
@@ -673,7 +673,7 @@ def upload_image_to_imgbb(file_bytes):
         print("✅ Image uploaded to ImgBB:", image_url)
         return image_url
     except Exception as e:
-        print("❌ Failed to upload image via imgbb: ")
+        print("❌ Failed to upload image via imgbb due to: ", e)
         return upload_to_cloudinary(file_bytes)
 
 
