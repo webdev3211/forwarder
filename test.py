@@ -86,8 +86,6 @@ ACCOUNT_TO_URL_MAP = {
     "EmhDeals24": "https://frcp.onrender.com", 
     "jyotbaheti96": "https://offerzone-u7ik.onrender.com", 
     "DealsJunction24": "https://thedealsjunction.webdev3211.workers.dev", 
-    "TheDealsValley": "https://dealsvalleyzone.webdev3211.workers.dev",
-    "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
     "shoppingofferh": "https://shoppingoffershub.onrender.com",
     "bestdealsadda": "https://bestdealsdaily.onrender.com",
     "shoppingofferon": "https://shoppingofferonline.up.railway.app",
@@ -103,10 +101,11 @@ ACCOUNT_TO_URL_MAP = {
     # "bestdiscounts24": "https://bestdiscounts24.onrender.com",
     # "AggarwalMu88573": "https://onlinedealsplatform.onrender.com",
     # "dealsunder99": "https://dealsunder99.onrender.com",
+    # "TheDealsValley": "https://dealsvalleyzone.webdev3211.workers.dev",
 
-    # no creds added
-    # "OfferBox": "https://dealsvalley.deno.dev" #some issue here please check later
-    # "CouponHub": "https://couponhub-delta.vercel.app/api"
+    # Reserved
+    # "Yogeshbaheti94": "https://fastestlootdealsindia.webdev3211.workers.dev",
+
 }
 
 ACCOUNT_TO_HAS_RETRY_FUNCTIONALITY_MAP = {
@@ -843,7 +842,8 @@ def checkIfUnwantedText(text):
                 return True  # Early return if unwanted keyword found
 
         # Check for Telegram links
-        if "https://t.me" in text_lower or "t.me/" in text_lower:
+        # BUT allow only if "price_error_junction" appears in link
+        if ("https://t.me" in text_lower or "t.me/" in text_lower) and ("price_error_junction" not in text_lower):
             print("❌ Telegram link found, skipping message:", text)
             return True
 
