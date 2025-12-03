@@ -843,7 +843,7 @@ def checkIfUnwantedText(text):
 
         # Check for Telegram links
         # BUT allow only if "price_error_junction" appears in link
-        if ("https://t.me" in text_lower or "t.me/" in text_lower) and ("price_error_junction" not in text_lower):
+        if ("https://t.me" in text_lower or "t.me/" in text_lower or "telegram.me/" in text_lower) and ("price_error_junction" not in text_lower):
             print("❌ Telegram link found, skipping message:", text)
             return True
 
@@ -1461,7 +1461,7 @@ def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
 def channelMappedToDeals99(channel_id):
     if channel_id is not None:
         print("Deal came in channel_id = ", channel_id)
-        return channel_id == UNDER_99_SOURCE_CHANNEL_ID or channel_id == NON_STOP_DEALS_CHANNEL_ID or channel_id == TECH_DEAL_SHOP_CHANNEL_ID 
+        return channel_id == UNDER_99_SOURCE_CHANNEL_ID or channel_id == TECH_DEAL_SHOP_CHANNEL_ID 
     else:
         return False
 
