@@ -1308,6 +1308,8 @@ def storeFirstLinkAndCheckIfDuplicate(text, can_be_ignored=False):
         FLIPKART_LENGTH = LINK_KEY_LENGTHS.get("flipkart", 30)
         MYNTRA_LENGTH = LINK_KEY_LENGTHS.get("myntra", 40)
         AJIO_LENGTH = LINK_KEY_LENGTHS.get("ajio", 40)
+        SHOPSY_LENGTH = LINK_KEY_LENGTHS.get("shopsy", 40)
+
 
         if "amazon" in long_url:
             match = re.search(r"(https?://[^ ]+/(?:dp|d)/[^/?]+)", long_url)
@@ -1325,6 +1327,8 @@ def storeFirstLinkAndCheckIfDuplicate(text, can_be_ignored=False):
             key = long_url[0:MYNTRA_LENGTH]
         elif "ajio" in long_url:
             key = long_url[0:AJIO_LENGTH]
+        elif "shopsy" in long_url:
+            key = long_url[0:SHOPSY_LENGTH]
 
         if key is None:
             return False
