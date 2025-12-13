@@ -1513,6 +1513,10 @@ async def main():
             channel_id = event.message.peer_id.channel_id
             channel_mapped_to_deals99 = channelMappedToDeals99(channel_id)
 
+            if channel_mapped_to_deals99 == True:
+                print("Deals99 is turned off for now do nothing")
+                return
+
             checkServerHealth()
 
             if checkIfUnwantedText(text):
