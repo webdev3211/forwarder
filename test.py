@@ -1470,7 +1470,7 @@ def channelMappedToDeals99(channel_id):
         return False
 
 
-client = TelegramClient('forwarder_session2', api_id, api_hash)
+client = TelegramClient('forwarder_session3', api_id, api_hash)
 
 
 async def main():
