@@ -68,6 +68,9 @@ UNDER_99_BOT_TOKEN = os.getenv("UNDER_99_BOT_TOKEN")
 UNDER_99_TARGET_CHANNEL_ID = os.getenv("UNDER_99_TARGET_CHANNEL_ID")
 NO_OF_TWITTER_REACTORS = int(os.getenv("NO_OF_TWITTER_REACTORS"))
 MULTI_REACTION_ON = os.getenv("MULTI_REACTION_ON")
+LOOTERHUB_ON = os.getenv("LOOTERHUB_ON")
+WAIT_BEFORE_NEXT_DEAL_BEFORE_LOOTERHUB_START = int(os.getenv("WAIT_BEFORE_NEXT_DEAL_BEFORE_LOOTERHUB_START"))
+
 
 
 LOCAL_TEST_BYPASS = False
@@ -79,6 +82,7 @@ unshortened_link_cache = {}
 data_pushed_to_db = {}
 last_tweet_time = {"timestamp": None}
 last_deal_time = {"timestamp": None}
+last_deal_time_main = {"timestamp": None}
 SUCCESS = "success"
 FAILED = "failed"
 ACCOUNTS = TWITTER_ACCOUNTS
@@ -126,6 +130,7 @@ tweet_reaction_scorecard = {item: 0 for item in ACCOUNTS}
 MIN_WAIT_BEFORE_REACT = 180 # 3 minutes
 MAX_WAIT_BEFORE_REACT = 900 # 15 minutes
 GAP_BETWEEN_REACTIONS = (60, 180) # seconds
+LOOTERHUB_CHANNEL_ID = 1192989118
 
 
 executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
@@ -1546,6 +1551,18 @@ async def main():
                     return
 
 
+            if (LOOTERHUB_ON == True or LOOTERHUB_ON == "True" or LOOTERHUB_ON is True):
+                if channel_id == LOOTERHUB_CHANNEL_ID: #Looterhub channel id
+                    now = datetime.now()
+                    last_deal_sent_time = last_deal_time_main.get("timestamp")
+
+                    if last_deal_sent_time is None or (now - last_deal_sent_time) >= timedelta(minutes=WAIT_BEFORE_NEXT_DEAL_BEFORE_LOOTERHUB_START):
+                        last_deal_time_main["timestamp"] = now
+                    else:
+                        print(f"⏳ SKIP_LOOTERHUB_DEAL — {WAIT_BEFORE_NEXT_DEAL_BEFORE_LOOTERHUB_START} mins not yet passed since last post from other channels")
+                        return
+
+
             image_url = await upload_photo_get_url(msg)
 
             modified_text = modify_message(text, False)
@@ -1567,6 +1584,7 @@ async def main():
                 trigger_cron_v2(deal_id, tg_msg_id, modified_text, image_url)
 
             print("Everything done successfully ✅✅")
+            last_deal_time_main["timestamp"] = datetime.now()
 
         except Exception as e:
             print("❌ Error in message handler:", e)
