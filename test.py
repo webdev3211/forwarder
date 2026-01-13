@@ -83,6 +83,7 @@ data_pushed_to_db = {}
 last_tweet_time = {"timestamp": None}
 last_deal_time = {"timestamp": None}
 last_deal_time_main = {"timestamp": None}
+looterhub_last_deal_time = {"timestamp": None}
 SUCCESS = "success"
 FAILED = "failed"
 ACCOUNTS = TWITTER_ACCOUNTS
@@ -1557,7 +1558,8 @@ async def main():
                     last_deal_sent_time = last_deal_time_main.get("timestamp")
 
                     if last_deal_sent_time is None or (now - last_deal_sent_time) >= timedelta(minutes=WAIT_BEFORE_NEXT_DEAL_BEFORE_LOOTERHUB_START):
-                        last_deal_time_main["timestamp"] = now
+                        print("SENDING_DEAL_FROM_LOOTERHUB")
+                        looterhub_last_sent_time["timestamp"] = now
                     else:
                         print(f"⏳ SKIP_LOOTERHUB_DEAL — {WAIT_BEFORE_NEXT_DEAL_BEFORE_LOOTERHUB_START} mins not yet passed since last post from other channels")
                         return
@@ -1584,7 +1586,11 @@ async def main():
                 trigger_cron_v2(deal_id, tg_msg_id, modified_text, image_url)
 
             print("Everything done successfully ✅✅")
-            last_deal_time_main["timestamp"] = datetime.now()
+    
+            if channel_id == LOOTERHUB_CHANNEL_ID:
+                print("Don't track last deal sent time")
+            else:
+                last_deal_time_main["timestamp"] = datetime.now()
 
         except Exception as e:
             print("❌ Error in message handler:", e)
