@@ -1529,17 +1529,6 @@ async def main():
                 print("❌ Msg contain unwanted things so dropping: " + text)
                 return
 
-            if not LOCAL_TEST_BYPASS:
-                if is_already_processed_by_url(text):
-                    print("⚠️ Duplicate message based on URL, skipping...")
-                    return
-
-            if HANDLE_DUPLICATES is True or HANDLE_DUPLICATES == "True":
-                has_duplicate = storeFirstLinkAndCheckIfDuplicate(text, channel_mapped_to_deals99)
-                if has_duplicate:
-                    print("⚠️ Duplicate message sent by diff sources, skipping..." + text)
-                    return
-
 
             if TG_WAIT == True or TG_WAIT == "True" or TG_WAIT is True:
                 now = datetime.now()
@@ -1563,6 +1552,18 @@ async def main():
                     else:
                         print(f"⏳ SKIP_LOOTERHUB_DEAL — {WAIT_BEFORE_NEXT_DEAL_BEFORE_LOOTERHUB_START} mins not yet passed since last post from other channels")
                         return
+
+
+            if not LOCAL_TEST_BYPASS:
+                if is_already_processed_by_url(text):
+                    print("⚠️ Duplicate message based on URL, skipping...")
+                    return
+
+            if HANDLE_DUPLICATES is True or HANDLE_DUPLICATES == "True":
+                has_duplicate = storeFirstLinkAndCheckIfDuplicate(text, channel_mapped_to_deals99)
+                if has_duplicate:
+                    print("⚠️ Duplicate message sent by diff sources, skipping..." + text)
+                    return
 
 
             image_url = await upload_photo_get_url(msg)
