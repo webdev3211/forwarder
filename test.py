@@ -70,6 +70,10 @@ NO_OF_TWITTER_REACTORS = int(os.getenv("NO_OF_TWITTER_REACTORS"))
 MULTI_REACTION_ON = os.getenv("MULTI_REACTION_ON")
 LOOTERHUB_ON = os.getenv("LOOTERHUB_ON")
 WAIT_BEFORE_NEXT_DEAL_BEFORE_LOOTERHUB_START = int(os.getenv("WAIT_BEFORE_NEXT_DEAL_BEFORE_LOOTERHUB_START"))
+BUNNY_BOT_TOKEN = os.getenv("BUNNY_BOT_TOKEN")
+ONLY_LOOT_DEAL_CHANNEL_ID = os.getenv("ONLY_LOOT_DEAL_CHANNEL_ID")
+ONLY_LOOT_DEAL_KEYWORDS = os.getenv("ONLY_LOOT_DEAL_KEYWORDS").split(",")
+
 
 
 
@@ -1217,7 +1221,7 @@ def unshorten_url(extracted_url, base_url=BASE_URL):
             return extracted_url
 
     except Exception as e:
-        print(f"❌❌ Some Error while unshortening url: {e}")
+        print(f"❌❌ Some Error while unshortening url: {extracted_url} ==> due to {e}")
 
         if errorRetryConditionMet(e, base_url, 'unshorten_url'):
             return unshorten_url(extracted_url, base_url=BASE_URL_BACKUP)
@@ -1431,6 +1435,51 @@ def delete_msg_from_all_grps(event):
         print("No match found")
 
 
+def sendLootDealsToOwnChannel(modified_text, image_url = None):
+    try:
+        base_url = f"https://api.telegram.org/{BUNNY_BOT_TOKEN}"
+
+        if (not modified_text or modified_text == "." or modified_text.strip() == "") and not image_url:
+            print("Deal text msg is empty with no image")
+            return
+
+        lower_text = modified_text.lower()
+
+        only_loot_deal_keywords = ONLY_LOOT_DEAL_KEYWORDS
+
+        if any(keyword in lower_text for keyword in only_loot_deal_keywords):
+            print("Loot deal keyword found send deal to personal channel as well")
+            
+            if not image_url:  # No image, send text message
+                url = f"{base_url}/sendMessage"
+                payload = {
+                    "chat_id": ONLY_LOOT_DEAL_CHANNEL_ID,
+                    "text": modified_text,
+                    "parse_mode": "markdown",
+                    "disable_web_page_preview": True
+                }
+            else:  # Image present, send photo
+                url = f"{base_url}/sendPhoto"
+                payload = {
+                    "chat_id": ONLY_LOOT_DEAL_CHANNEL_ID,
+                    "photo": image_url,
+                    "caption": modified_text,
+                    "parse_mode": "markdown",
+                    "disable_web_page_preview": True
+                }
+                print("only loot deal modified_text: ", modified_text)
+
+            response = requests.post(url, json=payload)
+            if response.status_code != 200:
+                print("❌ Error sending msg to onlyLootDeal:", response.text)
+            else:
+                print("✅ Message sent successfully.")
+        
+    except Exception as e:
+        print("Error occured while sending msg to onlylootdeal channel due to: " + e)
+
+        
+
 def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
     try:
         base_url = f"https://api.telegram.org/{UNDER_99_BOT_TOKEN}"
@@ -1583,6 +1632,9 @@ async def main():
             store = getStore(modified_text)
 
             deal_id = save_to_db(modified_text, store, image_url, tg_msg_id)
+
+            sendLootDealsToOwnChannel(modified_text, image_url)
+
             if deal_id is not None:
                 trigger_cron_v2(deal_id, tg_msg_id, modified_text, image_url)
 
