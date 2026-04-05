@@ -1437,7 +1437,7 @@ def delete_msg_from_all_grps(event):
 
 def sendLootDealsToOwnChannel(modified_text, image_url = None):
     try:
-        base_url = f"https://api.telegram.org/{BUNNY_BOT_TOKEN}"
+        base_url = f"https://api.telegram.org/bot{BUNNY_BOT_TOKEN}"
 
         if (not modified_text or modified_text == "." or modified_text.strip() == "") and not image_url:
             print("Deal text msg is empty with no image")
@@ -1447,8 +1447,10 @@ def sendLootDealsToOwnChannel(modified_text, image_url = None):
 
         only_loot_deal_keywords = ONLY_LOOT_DEAL_KEYWORDS
 
-        if any(keyword in lower_text for keyword in only_loot_deal_keywords):
-            print("Loot deal keyword found send deal to personal channel as well")
+        matched_keyword = next((k for k in only_loot_deal_keywords if k in lower_text), None)
+
+        if matched_keyword:
+            print(f"Loot deal keyword {matched_keyword} found send deal to personal channel as well")
             
             if not image_url:  # No image, send text message
                 url = f"{base_url}/sendMessage"
@@ -1476,8 +1478,7 @@ def sendLootDealsToOwnChannel(modified_text, image_url = None):
                 print("✅ Message sent successfully.")
         
     except Exception as e:
-        print("Error occured while sending msg to onlylootdeal channel due to: " + e)
-
+        print("Error occured while sending msg to onlylootdeal channel due to:", str(e))
         
 
 def sendMsgToTgDeals99ChannelDirectly(modified_text, image_url=None):
