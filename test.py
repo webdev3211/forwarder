@@ -1291,6 +1291,16 @@ def get_amazon_length(long_url: str) -> int:
     return LINK_KEY_LENGTHS.get("amazon", 35)
 
 
+def handleAmznUrls(long_url: str) -> str:
+    try:
+        if "amazon" in long_url.lower() and "://amazon." in long_url:
+            return long_url.replace("://amazon.", "://www.amazon.")
+        return long_url
+    except Exception as e:
+        print("❌❌ Some error in handleAmznUrls: ", e)
+        return long_url
+
+
 def storeFirstLinkAndCheckIfDuplicate(text, can_be_ignored=False):
     try:
         if can_be_ignored:
@@ -1312,7 +1322,7 @@ def storeFirstLinkAndCheckIfDuplicate(text, can_be_ignored=False):
 
         key = None
 
-
+        long_url = handleAmznUrls(long_url)
 
         AMAZON_LENGTH = LINK_KEY_LENGTHS.get("amazon", get_amazon_length(long_url))
         FLIPKART_LENGTH = LINK_KEY_LENGTHS.get("flipkart", 30)
