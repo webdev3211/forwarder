@@ -33,6 +33,8 @@ TEST_CHANNEL = os.getenv("TEST_CHANNEL")
 CRON_TIMEOUT = int(os.getenv("CRON_TIMEOUT"))
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 REMEMBER_TOKEN = os.getenv("REMEMBER_TOKEN")
+SECOND_ACCESS_TOKEN = os.getenv("SECOND_ACCESS_TOKEN")
+SECOND_REMEMBER_TOKEN = os.getenv("SECOND_REMEMBER_TOKEN")
 channel_urls = os.getenv("SOURCE_CHANNELS").split(",")
 USE_DEALAPI_V2 = int(os.getenv("USE_DEALAPI_V2"))
 UNWANTED_KEYWORD = os.getenv("UNWANTED_KEYWORD").split(",")
@@ -720,14 +722,72 @@ def replace_text_links_with_urls(msg):
     return text
 
 
+def get_week_of_month(dt):
+    first_day = dt.replace(day=1)
+    return ((dt.day + first_day.weekday()) // 7) + 1
 
-def modify_message(text, is_deal_over=False, base_url=BASE_URL):
+def getTokens():
+    try:
+        now = datetime.utcnow()
+
+        week = get_week_of_month(now)
+
+        # normalize to 1–4 cycle
+        week_cycle = ((week - 1) % 4) + 1
+
+        is_reversed_week = week_cycle in [2, 4]
+
+        day = now.weekday()  # 0=Mon ... 6=Sun
+
+        # your original mapping
+        normal_use_first = day in [0, 1, 4, 5]  # Mon, Tue, Fri, Sat
+
+        # reverse logic on alternate weeks
+        use_first = not normal_use_first if is_reversed_week else normal_use_first
+
+        if use_first:
+            return {
+                "accessToken": ACCESS_TOKEN,
+                "rememberMeToken": REMEMBER_TOKEN,
+                "useFirst": True
+            }
+        else:
+            return {
+                "accessToken": SECOND_ACCESS_TOKEN,
+                "rememberMeToken": SECOND_REMEMBER_TOKEN,
+                "useFirst": False
+            }
+    except Exception as e:
+        print("❌❌ Some error at getTokens: ", e)
+        return {
+                "accessToken": ACCESS_TOKEN,
+                "rememberMeToken": REMEMBER_TOKEN
+            }
+
+
+
+def modify_message(text, is_deal_over=False, base_url=BASE_URL, forced=False):
+
+    tokens = getTokens()
+
+    accessToken = tokens["accessToken"]
+    rememberMeToken = tokens["rememberMeToken"]
+    useFirst = tokens["useFirst"]
+
+    if forced == True:
+        accessToken = ACCESS_TOKEN
+        rememberMeToken = REMEMBER_TOKEN
+        useFirst = True
+
+    if not useFirst or useFirst == False:
+        base_url = BASE_URL_BACKUP
+    
     if text is not None and len(text) > 0 and not is_deal_over:
         url = base_url + '/api/change-deal-aff-v2'
         payload = {
             "message": text,
-            "accessToken": ACCESS_TOKEN,
-            "rememberMeToken": REMEMBER_TOKEN,
+            "accessToken": accessToken,
+            "rememberMeToken": rememberMeToken,
             "bitlyConvert": True,
             "imageUrl": ""
         }
@@ -742,6 +802,9 @@ def modify_message(text, is_deal_over=False, base_url=BASE_URL):
 
         except requests.RequestException as e:
             print("❌ Error from change-deal-aff-v2 API:", e)
+
+            if not useFirst or useFirst == False:
+                return modify_message(text, is_deal_over, base_url=BASE_URL, forced=True)
 
             if errorRetryConditionMet(e, base_url, 'modify_message'):
                 return modify_message(text, is_deal_over, base_url=BASE_URL_BACKUP)
