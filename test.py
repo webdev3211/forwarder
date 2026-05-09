@@ -743,7 +743,9 @@ def getTokens():
         normal_use_first = day in [0, 1, 4, 5]  # Mon, Tue, Fri, Sat
 
         # reverse logic on alternate weeks
-        use_first = not normal_use_first if is_reversed_week else normal_use_first
+        # use_first = not normal_use_first if is_reversed_week else normal_use_first
+
+        use_first = True
 
         if use_first:
             return {
