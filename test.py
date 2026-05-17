@@ -29,6 +29,7 @@ IMGBB_API_KEY = os.getenv("IMGBB_API_KEY")
 BASE_URL = os.getenv("BASE_URL")
 BASE_URL_BACKUP = os.getenv("BASE_URL_BACKUP")
 BASE_URL_2 = os.getenv("BASE_URL_2")
+BTSTOCK_BASE_URL = os.getenv("BTSTOCK_BASE_URL")
 TEST_CHANNEL = os.getenv("TEST_CHANNEL")
 CRON_TIMEOUT = int(os.getenv("CRON_TIMEOUT"))
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
@@ -138,6 +139,7 @@ MIN_WAIT_BEFORE_REACT = 180 # 3 minutes
 MAX_WAIT_BEFORE_REACT = 900 # 15 minutes
 GAP_BETWEEN_REACTIONS = (60, 180) # seconds
 LOOTERHUB_CHANNEL_ID = 1192989118
+STOCK_VALID_RESULTS = ["GOOD", "EXCELLENT", "OK", "GREAT", "WEAK"]
 
 
 executor_updates = ThreadPoolExecutor(max_workers=10)  # For update_messages API
@@ -1601,6 +1603,80 @@ def channelMappedToDeals99(channel_id):
         return False
 
 
+
+def extractMsgAndUpdateStockResult(msg):
+
+    try:
+        now = datetime.now()
+
+        day_str = now.strftime("%a")
+        date_str = str(now.day)
+        month_str = now.strftime("%b")
+
+        # Windows fix
+        if date_str.startswith("0"):
+            date_str = date_str[1:]
+
+        upper_msg = msg.upper()
+
+        # Must contain RESULTS + AGO
+        if "RESULTS" not in upper_msg or "AGO" not in upper_msg:
+            print("Msg is not containing any result")
+            return
+
+        # Find result type
+        result_type = None
+
+        for result in STOCK_VALID_RESULTS:
+            if result in upper_msg:
+                result_type = result
+                break
+
+        if not result_type:
+            return
+
+        # Extract stockname
+        stock_match = re.search(r"#([A-Z0-9]+)", upper_msg)
+
+        if not stock_match:
+            print("No stock name extracted")
+            return
+
+        stockname = stock_match.group(1)
+
+        # Final string
+        final_result = f"{result_type} {day_str} {date_str} {month_str}"
+
+        print(stockname, final_result)
+
+        update_stock_results(stockname, final_result)
+
+    except Exception as e:
+        print("❌ Error in extracting msg from earningpulse channel:", str(e))
+
+
+
+def update_stock_results(stockname, results):
+    try:
+        response = requests.put(
+            BTSTOCK_BASE_URL + "/livestockdb/update-stockresults",
+            json={
+                "stockname": stockname,
+                "results": results
+            }
+        )
+
+        if response.status_code == 200:
+            print(f"✅ Updated {stockname}: {results}")
+        elif response.status_code != 200 and '-BE' not in stockname:
+            print(f"Trying with {stockname + '-BE'}")
+            update_stock_results(stockname+'-BE',results)
+
+    except Exception as e:
+        print(f"❌ Error updating {stockname} results: {results} with error as {e}")
+
+
+
 client = TelegramClient('forwarder_session4', api_id, api_hash)
 
 
@@ -1646,6 +1722,10 @@ async def main():
 
             if channel_mapped_to_deals99 == True:
                 print("Deals99 is turned off for now do nothing")
+                return
+            
+            if channel_id == 1909545111: #earningpulse
+                extractMsgAndUpdateStockResult(text)
                 return
 
             checkServerHealth()
