@@ -1724,7 +1724,7 @@ async def main():
                 print("Deals99 is turned off for now do nothing")
                 return
             
-            if channel_id == 1909545111: #earningpulse
+            if channel_id == 2457353254: #earningpulse
                 extractMsgAndUpdateStockResult(text)
                 return
 
