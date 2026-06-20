@@ -1621,7 +1621,7 @@ def extractMsgAndUpdateStockResult(msg):
 
         # Must contain RESULTS + AGO
         if "RESULTS" not in upper_msg or "AGO" not in upper_msg:
-            print("Msg is not containing any result")
+            print("Msg is not containing any result ")
             return
 
         # Find result type
