@@ -920,7 +920,7 @@ def checkIfUnwantedText(text):
 
         # Check for Telegram links
         # BUT allow only if "price_error_junction" appears in link
-        if ("https://t.me" in text_lower or "t.me/" in text_lower or "telegram.me/" in text_lower) and ("price_error_junction" not in text_lower):
+        if ("https://t.me" in text_lower or "t.me/" in text_lower or "telegram.me/" in text_lower or "link.amazon" in text_lower) and ("price_error_junction" not in text_lower):
             print("❌ Telegram link found, skipping message:", text)
             return True
 
