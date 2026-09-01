@@ -1677,7 +1677,7 @@ def update_stock_results(stockname, results):
 
 
 
-client = TelegramClient('forwarder_session4', api_id, api_hash)
+client = TelegramClient('forwarder_session6', api_id, api_hash)
 
 
 async def main():
